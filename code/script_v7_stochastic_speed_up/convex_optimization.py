@@ -79,6 +79,99 @@ class Network:
                 la_new[u,k] = ADMM.lbda[u,k] + ADMM.r_2 * (ADMM.c[u,k]-z_new[k] )
         return z_new, rho_new, la_new
 
+    def centralized_problem(self):
+        model = AbstractModel('Convex Reformulation')
+        model.c = Var(self.K, self.Scn.U, within=NonNegativeReals,initialize=1000.0)
+        model.z = Var(self.K, within=NonNegativeReals,initialize=1000.0)
+        model.g = Var(self.K, self.Scn.U,  within=NonNegativeReals,initialize=500.0)
+        model.q = Var(self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals, initialize=500.0)#=1e-1)
+        model.v = Var(self.A, self.Scn.U, within=NonNegativeReals,initialize=0.0) # traffic flow
+        model.x = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)   # traffic flow on link a associated with O-D pairs (r,s) and passing k
+        # break up x into two pars: x1 and x2
+        model.x1 = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)
+        model.x2 = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)
+
+        def obj_rule(model):
+            exp0 = sum(self.Scn.pr[u]*sum(self.I.ca*model.c[k,u]**2+self.I.cb*model.c[k,u] for k in self.K) for u in self.Scn.U)
+            exp1 = sum(self.Scn.pr[u]*sum(self.I.ga*model.g[k, u]**2+self.I.gb*model.g[k, u] for k in self.K) for u in self.Scn.U)
+            exp20 = sum(self.Scn.pr[u]*sum(self.C.tff[r,s]*(model.v[r,s,u]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s,u]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.A) for u in self.Scn.U)
+            exp21 = sum(self.Scn.pr[u]*sum( model.q[r,s,k,u]*( pyolog(model.q[r,s,k,u]) - 1.0 - self.C.b0[k]) for k in self.K for s in self.S for r in self.R) for u in self.Scn.U)
+            return exp0 + exp1 + self.C.b1/self.C.b3 * ( exp20+ 1.0/self.C.b1*exp21)
+        model.obj = Objective(rule=obj_rule, sense=minimize)
+
+        def market_clear_rule(model, k, u):
+            return sum( self.C.e[r,s]*model.q[r, s, k,u] for r in self.R for s in self.S) - model.g[k,u] == 0
+        model.market_clear = Constraint(self.K, self.Scn.U, rule = market_clear_rule)
+
+        def capacity_rule(model, k, u):
+            return model.g[k,u]-model.c[k,u] <= 0
+        model.capacity = Constraint(self.K, self.Scn.U, rule=capacity_rule)
+
+        def non_anti_rule(model, k, u):
+            return model.c[k,u] == model.z[k]
+        model.non_anti = Constraint(self.K,self.Scn.U, rule=non_anti_rule)
+
+        def conb_rule(model, i, j, u):
+            return sum( model.x[i,j,r,s,k,u] for k in self.K for s in self.S for r in self.R) == model.v[i,j,u]
+        model.conb = Constraint(self.A, self.Scn.U, rule=conb_rule)
+
+        def conb2_rule(model, i, j,r,s,k,u):
+            return model.x1[i,j,r,s,k,u] + model.x2[i,j,r,s,k,u] == model.x[i,j,r,s,k,u]
+        model.conb2 = Constraint(self.A, self.R, self.S, self.K, self.Scn.U, rule=conb2_rule)
+
+        def conc2_rule(model, r, s, k,n, u):
+            return sum(self.C.mA[n,i,j]*model.x1[i,j,r,s,k,u] for (i,j) in self.A) == model.q[r,s,k,u]*self.C.mE[n,r,k]
+        model.conc2 = Constraint(self.R, self.S, self.K, self.N,self.Scn.U, rule=conc2_rule)
+
+        def conc3_rule(model, r, s, k,n,u):
+            return sum(self.C.mA[n,i,j]*model.x2[i,j,r,s,k,u] for (i,j) in self.A) == model.q[r,s,k,u]*self.C.mE[n,k,s]
+        model.conc3 = Constraint(self.R, self.S, self.K, self.N, self.Scn.U, rule=conc3_rule)
+
+        def cond_rule(model, r, s, u):
+            return sum( model.q[r,s,k,u] for k in self.K) == self.C.d[r,s]*self.Scn.growth[u]
+        model.cond = Constraint(self.R, self.S, self.Scn.U, rule=cond_rule)
+        optsolver = SolverFactory(nlsol)
+        inst = model.create_instance()
+        inst.dual = Suffix(direction=Suffix.IMPORT)
+        # initialization
+
+#       inst.c[3].value = 585.8735090176859
+#       inst.c[6].value = 228.81446723201296
+#       inst.c[12].value = 472.7288981299494
+#       inst.c[17].value = 440.00420118220916
+#       inst.c[22].value = 772.5789256320681
+
+        results = optsolver.solve(inst, load_solutions=False)
+        inst.solutions.load_from(results)
+        rho_ans = {}
+        x = {}
+        v = {}
+        q = {}
+        g = {}
+        c = {}
+        z = {}
+        for k in self.K:
+            z[k] = value(inst.z[k])
+
+        for u in self.Scn.U:
+            for k in self.K:
+                rho_ans[u,k] = inst.dual[inst.market_clear[k,u]]
+                print('Locational price at facility %i at scenario %i: %f' % (k,u, rho_ans[u,k]))
+            for (i,j) in self.A:
+                v[i,j,u]=value(inst.v[i,j,u])
+                for r in self.R:
+                    for s in self.S:
+                        for k in self.K:
+                            x[i,j,r,s,k,u]=value(inst.x[i,j,r,s,k,u])
+            for r in self.R:
+                for s in self.S:
+                    for k in self.K:
+                        q[r,s,k,u]=value(inst.q[r,s,k,u])
+            for k in self.K:
+                g[k,u]=value(inst.g[k,u])
+                c[k,u]=value(inst.c[k,u])
+        return g, c, q, x, v, rho_ans, z
+
     def init_ADMM(self):
         rho_0={}
         y = 500
@@ -120,14 +213,14 @@ class Network:
         ES={}
         for u in self.Scn.U:
             for k in self.K:
-                ES[u,k] = ADMM.g[u,k] - sum( self.C.e[r,s]*ADMM.q[u,r,s,k] for r in self.R for s in self.S)
+                ES[u,k] = ADMM.g[k,u] - sum( self.C.e[r,s]*ADMM.q[r,s,k,u] for r in self.R for s in self.S)
         return ES
 
     def scen_diff(self, ADMM):
         SD={}
         for u in self.Scn.U:
             for k in Ntw.K:
-                SD[u, k] = ADMM.c[u,k] - ADMM.znu[k]
+                SD[u, k] = ADMM.c[k,u] - ADMM.znu[k]
         return SD
 
     # all the output can be saved in this function.
@@ -160,90 +253,6 @@ class Investors(Network):
         self.gb = costgb
         self.model = {}
         super().__init__(nodes, links, origin, destination, facility, scenarios)
-
-    def centralized_problem(self, c_old):
-        model = AbstractModel('System_minimization')
-        model.c = Var(self.K, within=NonNegativeReals,initialize=1000.0)
-        model.g = Var(self.K, within=NonNegativeReals,initialize=500.0)
-        model.q = Var(self.R, self.S, self.K, within=NonNegativeReals, initialize=500.0)#=1e-1)
-        model.v = Var(self.A, within=NonNegativeReals,initialize=0.0) # traffic flow
-        model.x = Var(self.A, self.R, self.S, self.K, within=NonNegativeReals,initialize=0.0)   # traffic flow on link a associated with O-D pairs (r,s) and passing k
-        # break up x into two pars: x1 and x2
-        model.x1 = Var(self.A, self.R, self.S, self.K, within=NonNegativeReals,initialize=0.0)
-        model.x2 = Var(self.A, self.R, self.S, self.K, within=NonNegativeReals,initialize=0.0)
-
-        def obj_rule(model):
-            exp0 = sum(self.ca*model.c[k]**2+self.cb*model.c[k] for k in self.K)
-            exp1 = sum(self.ga*model.g[k]**2+self.gb*model.g[k] for k in self.K)
-            exp20 = sum( self.tff[r,s]*(model.v[r,s]+(self.b[r,s]/(self.alpha[r,s]+1.0))*(model.v[r,s]**(self.alpha[r,s]+1))/(self.cap[r,s]**(self.alpha[r,s]))) for (r,s) in Ntw.A)
-            exp21 = (sum( sum( sum( model.q[r,s,k]*( pyolog(model.q[r,s,k]) - 1.0 - self.b0[k] - self.b2*c_old[k]) for k in self.K) for s in self.S) for r in self.R))
-            return exp0 + exp1 + self.b1/self.b3 * ( exp20+ 1.0/self.b1*exp21)
-        model.obj = Objective(rule=obj_rule, sense=minimize)
-
-        def market_clear_rule(model, k):
-            return sum( self.e[r,s]*model.q[r, s, k] for r in self.R for s in self.S) - model.g[k] == 0
-        model.market_clear = Constraint(self.K, rule = market_clear_rule)
-
-        def capacity_rule(model, k):
-            return model.g[k]-model.c[k] <= 0
-        model.capacity = Constraint(self.K, rule=capacity_rule)
-
-        def conb_rule(model, i, j):
-            return sum( model.x[i,j,r,s,k] for k in self.K for s in self.S for r in self.R) == model.v[i,j]
-        model.conb = Constraint(self.A, rule=conb_rule)
-
-        def conb2_rule(model, i, j,r,s,k):
-            return model.x1[i,j,r,s,k] + model.x2[i,j,r,s,k] == model.x[i,j,r,s,k]
-        model.conb2 = Constraint(self.A, self.R, self.S, self.K, rule=conb2_rule)
-
-        def conc2_rule(model, r, s, k,n):
-            return sum(self.mA[n,i,j]*model.x1[i,j,r,s,k] for (i,j) in self.A) == model.q[r,s,k]*self.mE[n,r,k]
-        model.conc2 = Constraint(self.R, self.S, self.K, self.N, rule=conc2_rule)
-
-        def conc3_rule(model, r, s, k,n):
-            return sum(self.mA[n,i,j]*model.x2[i,j,r,s,k] for (i,j) in self.A) == model.q[r,s,k]*self.mE[n,k,s]
-        model.conc3 = Constraint(self.R, self.S, self.K, self.N, rule=conc3_rule)
-
-        def cond_rule(model, r, s):
-            return sum( model.q[r,s,k] for k in self.K) == Ntw.d[r,s]
-        model.cond = Constraint(self.R, self.S, rule=cond_rule)
-        optsolver = SolverFactory(quadsol)
-        inst = model.create_instance()
-        inst.dual = Suffix(direction=Suffix.IMPORT)
-        # initialization
-
-#       inst.c[3].value = 585.8735090176859
-#       inst.c[6].value = 228.81446723201296
-#       inst.c[12].value = 472.7288981299494
-#       inst.c[17].value = 440.00420118220916
-#       inst.c[22].value = 772.5789256320681
-
-        results = optsolver.solve(inst, load_solutions=False)
-        inst.solutions.load_from(results)
-        rho_ans = {}
-        for k in self.K:
-            rho_ans[k] = inst.dual[inst.market_clear[k]]
-            print('Locational price at facility %i: %f' % (k, rho_ans[k]))
-        x={}
-        v={}
-        for (i,j) in self.A:
-            v[i,j]=value(inst.v[i,j])
-            for r in self.R:
-                for s in self.S:
-                    for k in self.K:
-                        x[i,j,r,s,k]=value(inst.x[i,j,r,s,k])
-        q={}
-        for r in self.R:
-            for s in self.S:
-                for k in self.K:
-                    q[r,s,k]=value(inst.q[r,s,k])
-        g={}
-        c={}
-        for k in self.K:
-            g[k]=value(inst.g[k])
-            c[k]=value(inst.c[k])
-            print ('Investment capacity at facility %i: %f' % (k, c[k]))
-        return g, c, q, x, v, rho_ans
 
     def profit_maximization_model(self, ADMM, u):
         model = AbstractModel('profit_max')
@@ -756,7 +765,7 @@ if __name__ == "__main__":
     SD_tol = 0.1
     ES_tol = 0.1
     print ('Stopping critieria %f' % ES_tol)
-    Maxit = 200
+    Maxit = 1
     EE = {} # excess supply
     SS = {} # scenario difference
     RR = {} # prices
@@ -770,8 +779,11 @@ if __name__ == "__main__":
     for iter in range(Maxit):
         time_bq[iter] = time.time()
         print ('Start iteration %i\t' % iter)
-        Algo.q, Algo.x, Algo.v, Algo.c, Algo.g = Ntw.step_1(Algo)
-        Algo.znu, Algo.rho, Algo.lbda = Ntw.step_2(Algo)
+        # this are iteration for ADMM algorithm
+        #Algo.q, Algo.x, Algo.v, Algo.c, Algo.g = Ntw.step_1(Algo)
+        #Algo.znu, Algo.rho, Algo.lbda = Ntw.step_2(Algo)
+       
+        Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem()
         ES = Ntw.exsu(Algo)
         SD = Ntw.scen_diff(Algo)
         maxee = max( abs(ES[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
