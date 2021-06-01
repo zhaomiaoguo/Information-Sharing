@@ -375,7 +375,7 @@ def Example():
     S = [1,7,14,20,24]
     R = [2,11,13,19,21]
     K = [3,6,12,17,22]
-    U = set(range(1,30))
+    U = set(range(1,41))
     N = set(range(1,25))
     A = [(1,2),(1,3),
         (2,1),(2,6),
@@ -427,7 +427,7 @@ def Example():
     random.seed(1)
     growth = {}
     for u in U:
-        growth[u] = random.uniform(0,1)
+        growth[u] = random.uniform(1,3)
 
 
     
