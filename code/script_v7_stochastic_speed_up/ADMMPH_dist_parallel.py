@@ -22,6 +22,11 @@ class Network:
         self.I = {}
         self.C = {}
 
+    def single_process(self, z_s, q_xi, lamda, gamma, xi):
+        u_s_xi, g_s_xi, g_c_xi, p_i_xi, d_i_xi, theta_i_xi, f_i_xi = self.step1(z_s, q_xi, lamda[xi], gamma[xi], xi)
+        q_xi, v_xi, v_rs_xi = self.step2(p_i_xi, lamda[xi],xi)
+        return xi, u_s_xi, g_s_xi, g_c_xi, p_i_xi, d_i_xi, theta_i_xi, f_i_xi, q_xi, v_xi, v_rs_xi
+
     def step_1(self, ADMM):
         print ('Starting Step 1:')
         print ('Solving investor profit maximization')
@@ -375,7 +380,7 @@ def Example():
     S = [1,7,14,20,24]
     R = [2,11,13,19,21]
     K = [3,6,12,17,22]
-    U = set(range(1,30))
+    U = set(range(1,10))
     N = set(range(1,25))
     A = [(1,2),(1,3),
         (2,1),(2,6),
@@ -742,6 +747,26 @@ if __name__ == "__main__":
     for iter in range(Maxit):
         time_bq[iter] = time.time()
         print ('Start iteration %i\t' % iter)
+        all_tasks = []
+        with ProcessPoolExecutor(1) as executor:
+            for u in Ntw.Scn.U:
+                all_tasks.append(executor.submit(self.single_process, z_s, q[xi], lamda, gamma, xi))
+            for future in as_completed(all_tasks):
+                data = future.result()
+                u_s[data[0]] = data[1]
+                p_i[data[0]] = data[4]
+                q[data[0]] = data[8]
+                v[data[0]] = data[9]
+                self.q_ini[data[0]] = data[8]
+                self.v_ini[data[0]] = data[9]
+                self.v_rs_ini[data[0]] = data[10]
+                self.u_s_ini[data[0]] = data[1]
+                self.g_s_ini[data[0]] = data[2]
+                self.g_c_ini[data[0]] = data[3]
+                self.p_i_ini[data[0]] = data[4]
+                self.d_i_ini[data[0]] = data[5]
+                self.theta_i_ini[data[0]] = data[6]
+                self.f_i_ini[data[0]] = data[7]
         Algo.q, Algo.x, Algo.v, Algo.c, Algo.g = Ntw.step_1(Algo)
         Algo.znu, Algo.rho, Algo.lbda = Ntw.step_2(Algo)
         ES = Ntw.exsu(Algo)

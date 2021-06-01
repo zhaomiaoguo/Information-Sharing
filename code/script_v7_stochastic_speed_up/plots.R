@@ -33,7 +33,7 @@ plot_iter <- function(data, yLab){
 
 # set working directory ----
 setwd("./Results/")
-#setwd("/Users/zmguo/Desktop/working_project/2018_Stochastic_Fast_Charging/codes/script_v6_Stochastic/Results_20181124_2021/") #mac
+#setwd("./Results_20210510_0033/") #mac
 
 # read in data ----
 es <- read.csv("Resulting_exsu.csv", header = FALSE, sep = ",")

@@ -8,6 +8,7 @@ import os
 from time import perf_counter, strftime,localtime
 from pyomo.environ import log as pyolog
 
+import random
 quadsol = 'cplex'
 nlsol = 'ipopt'
 
@@ -384,7 +385,7 @@ def Example():
     S = [1,7,14,20,24]
     R = [2,11,13,19,21]
     K = [3,6,12,17,22]
-    U = set(range(1,21))
+    U = set(range(1,41))
     N = set(range(1,25))
     A = [(1,2),(1,3),
         (2,1),(2,6),
@@ -433,51 +434,22 @@ def Example():
             d[r,s] = 100
 
     # EV adoption rate
-    growth = {1:0.970663540992603,
-                2:0.818677634519224,
-                3:0.206045897630845,
-                4:0.632967417224704,
-                5:0.997795705760603,
-                6:1.14355744458188,
-                7:0.866677282074115,
-                8:0.854367082856527,
-                9:1.1799647741736,
-                10:0.47221895926794,
-                11:1.32775586479348,
-                12:0.740780099527871,
-                13:0.647608339853351,
-                14:1.55839539654934,
-                15:0.967552018960958,
-                16:0.811896636569074,
-                17:1.33736585847195,
-                18:0.987171406441723,
-                19:0.314539727931908,
-                20:1.3407608282914}
-
+    random.seed(1)
+    growth = {}
+    for u in U:
+        growth[u] = random.uniform(0,1)
+    
     # Probablity
-    pr = {1:0.05,
-            2:0.05,
-            3:0.05,
-            4:0.05,
-            5:0.05,
-            6:0.05,
-            7:0.05,
-            8:0.05,
-            9:0.05,
-            10:0.05,
-            11:0.05,
-            12:0.05,
-            13:0.05,
-            14:0.05,
-            15:0.05,
-            16:0.05,
-            17:0.05,
-            18:0.05,
-            19:0.05,
-            20:0.05}
+    pr = {}
+    for u in U:
+        pr[u] = random.uniform(0,1) 
+    pr_sum = sum(pr[u] for u in U)
+    for u in U:
+        pr[u] = pr[u]/pr_sum
 
     Scen = {}
     Scen = Scenarios(growth, U, pr)
+
     # travel cost function: use BPR function
 
     alpha = {}
