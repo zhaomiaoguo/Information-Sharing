@@ -22,7 +22,7 @@ class Network:
         self.I = {}
         self.C = {}
 
-    def step_1(self, ADMM):
+    def step_1(self, ADMM, ipoptObjs):
         print ('Starting Step 1:')
         print ('Solving investor profit maximization')
         c = {}
@@ -46,7 +46,11 @@ class Network:
         q = {}
         x = {}
         v = {}
+        x1 = {}
+        x2 = {}
+                     
         for u in self.Scn.U:
+            
             self.C.model[u].del_component('obj')
             def obj_rule_tap(model):
                 exp0 = sum(self.C.tff[r,s]*(model.v[r,s]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.C.A)
@@ -54,7 +58,25 @@ class Network:
                 exp2 =  sum((sum(self.C.e[r,s]*model.q[r, s, k] for r in self.R for s in self.S ) - ADMM.g[u, k])** 2 for k in self.K )
                 return self.C.b1/self.C.b3*(exp0 + exp1) + ADMM.r_1/2.0 * exp2
             self.C.model[u].add_component('obj', Objective(rule=obj_rule_tap, sense=minimize))
-            q_u, x_u, v_u = self.C.traffic_problem(ADMM,u)
+
+            
+            q_u, x_u, v_u, x1_u, x2_u = self.C.traffic_problem(u, ipoptObjs[u])
+            # TODO
+            #self.C.model[u].q.setinitial()
+            #ipoptObjs[u].update_var(self.C.model[u].q)
+            # delate variables
+            self.C.model[u].del_component('q')
+            self.C.model[u].del_component('x')
+            self.C.model[u].del_component('x1')
+            self.C.model[u].del_component('x2')
+            self.C.model[u].del_component('v')
+            # create variables with new initial values for next iteration warm start with prime variables.
+            self.C.model[u].add_component('q', Var(self.C.R, self.C.S, self.C.K, within=NonNegativeReals, initialize=q_u))
+            self.C.model[u].add_component('x', Var(self.C.A, self.C.R, self.C.S, self.C.K, within=NonNegativeReals, initialize=x_u))
+            self.C.model[u].add_component('x1', Var(self.C.A, self.C.R, self.C.S, self.C.K, within=NonNegativeReals, initialize=x1_u))
+            self.C.model[u].add_component('x2', Var(self.C.A, self.C.R, self.C.S, self.C.K, within=NonNegativeReals, initialize=x2_u))
+            self.C.model[u].add_component('v', Var(self.C.A, within=NonNegativeReals, initialize=v_u))
+
             for (i,j) in self.A:
                 v[u,i,j] = v_u[i,j]
             for r in self.R:
@@ -63,7 +85,9 @@ class Network:
                         q[u,r,s,k] = q_u[r,s,k]
                         for (i,j) in self.A:
                             x[u, i,j, r,s,k] = x_u[i,j,r,s,k]
-        return q, x, v, c, g
+                            x1[u, i,j, r,s,k] = x1_u[i,j,r,s,k]
+                            x2[u, i,j, r,s,k] = x2_u[i,j,r,s,k]
+        return q, x, v, c, g, x1, x2
 
     def step_2(self, ADMM):
         print ('Starting Step 2:')
@@ -295,7 +319,7 @@ class Consumers(Network):
         super().__init__(nodes, links, origin, destination, facility, scenarios)
 
     def traffic_problem_model(self, ADMM, u):
-        model = AbstractModel('CDA')
+        model = ConcreteModel('CDA')
         model.q = Var(self.R, self.S, self.K, within=NonNegativeReals, initialize=500.0)#=1e-1)
         model.v = Var(self.A, within=NonNegativeReals,initialize=0.0) # traffic flow
         model.x = Var(self.A, self.R, self.S, self.K, within=NonNegativeReals,initialize=0.0)   # traffic flow on link a associated with O-D pairs (r,s) and passing k
@@ -329,15 +353,41 @@ class Consumers(Network):
         def cond_rule(model, r, s):
             return sum( model.q[r,s,k] for k in self.K) == self.d[r,s] * self.Scn.growth[u]
         model.cond = Constraint(self.R, self.S, rule=cond_rule)
-        inst = model.create_instance()
-        return inst
+        #inst = model.create_instance()
 
-    def traffic_problem(self, ADMM, u):
+        # Ipopt bound multipliers (obtained from solution) 
+        model.ipopt_zL_out = Suffix(direction=Suffix.IMPORT) 
+        model.ipopt_zU_out = Suffix(direction=Suffix.IMPORT)
+        # Ipopt bound multipliers (sent to solver)
+        model.ipopt_zL_in = Suffix(direction=Suffix.EXPORT)
+        model.ipopt_zU_in = Suffix(direction=Suffix.EXPORT)
+        # Obtain dual solutions from first solve and send to warm start
+        model.dual = Suffix(direction=Suffix.IMPORT_EXPORT)
+
+        return model 
+
+    def traffic_problem(self, u, ipoptObj):
+        
         x={}
+        x1={}
+        x2={}
         v={}
         q={}
-        optsolver = SolverFactory(nlsol)
-        results = optsolver.solve(self.model[u], load_solutions=False)
+        warm_start =True 
+        #optsolver = SolverFactory(nlsol)
+        
+        optsolver = ipoptObj 
+
+        # new problem
+        if (warm_start == True):
+            self.model[u].ipopt_zL_in.update(self.model[u].ipopt_zL_out) 
+            self.model[u].ipopt_zU_in.update(self.model[u].ipopt_zU_out) 
+            self.model[u].dual.update(self.model[u].dual) 
+            optsolver.options['warm_start_init_point'] = 'yes' 
+            optsolver.options['warm_start_bound_push'] = 1e-6 
+            optsolver.options['warm_start_mult_bound_push'] = 1e-6 
+            optsolver.options['mu_init'] = 1e-6
+        results = optsolver.solve(self.model[u], tee = True, load_solutions=False)
         self.model[u].solutions.load_from(results)
         for (i,j) in self.A:
             v[i,j]=value(self.model[u].v[i,j])
@@ -345,11 +395,13 @@ class Consumers(Network):
                 for s in self.S:
                     for k in self.K:
                         x[i,j,r,s,k]=value(self.model[u].x[i,j,r,s,k])
+                        x1[i,j,r,s,k]=value(self.model[u].x1[i,j,r,s,k])
+                        x2[i,j,r,s,k]=value(self.model[u].x2[i,j,r,s,k])
         for r in self.R:
             for s in self.S:
                 for k in self.K:
                     q[r,s,k]=value(self.model[u].q[r,s,k])
-        return q, x, v
+        return q, x, v, x1, x2
 
 class ADMM:
     def __init__(self, rho, q, r1, r2, la, z, c, g):#, growth):#pr,
@@ -358,6 +410,8 @@ class ADMM:
         self.c = c
         self.g = g
         self.x = {}
+        self.x1 = {}
+        self.x2 = {}
         self.v = {}
         self.r_1 = r1
         self.r_2 = r2
@@ -375,7 +429,7 @@ def Example():
     S = [1,7,14,20,24]
     R = [2,11,13,19,21]
     K = [3,6,12,17,22]
-    U = set(range(1,41))
+    U = set(range(1,3))
     N = set(range(1,25))
     A = [(1,2),(1,3),
         (2,1),(2,6),
@@ -735,14 +789,16 @@ if __name__ == "__main__":
     RR[0] = Algo.rho
     EM = {} # max excess supply for all the locations
     SM = {} # max scenario difference for all the locations
+    ipoptObjs = {} # ipopt solver objects for each scenarios
     h_max = 4 # maximum hours for running this program
     for u in Ntw.Scn.U:
         Ntw.I.model[u] = Ntw.I.profit_maximization_model(Algo,u)
         Ntw.C.model[u] = Ntw.C.traffic_problem_model(Algo,u)
+        ipoptObjs[u] = SolverFactory(nlsol)
     for iter in range(Maxit):
         time_bq[iter] = time.time()
         print ('Start iteration %i\t' % iter)
-        Algo.q, Algo.x, Algo.v, Algo.c, Algo.g = Ntw.step_1(Algo)
+        Algo.q, Algo.x, Algo.v, Algo.c, Algo.g, Algo.x1, Algo.x2 = Ntw.step_1(Algo, ipoptObjs)
         Algo.znu, Algo.rho, Algo.lbda = Ntw.step_2(Algo)
         ES = Ntw.exsu(Algo)
         SD = Ntw.scen_diff(Algo)

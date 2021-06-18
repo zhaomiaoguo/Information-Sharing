@@ -432,7 +432,7 @@ def Example():
     random.seed(1)
     growth = {}
     for u in U:
-        growth[u] = random.uniform(0,1)
+        growth[u] = random.uniform(1,3)
 
 
     
