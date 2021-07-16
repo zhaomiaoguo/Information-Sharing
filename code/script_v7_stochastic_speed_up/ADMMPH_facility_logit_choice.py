@@ -8,6 +8,7 @@ import os
 from time import perf_counter, strftime,localtime
 from pyomo.environ import log as pyolog
 import random
+import math
 quadsol = 'cplex'
 nlsol = 'ipopt'
 
@@ -22,7 +23,7 @@ class Network:
         self.I = {}
         self.C = {}
 
-    def step_1(self, ADMM, ipoptObjs):
+    def step_0(self, ADMM):
         print ('Starting Step 1:')
         print ('Solving investor profit maximization')
         c = {}
@@ -30,11 +31,45 @@ class Network:
         for u in self.Scn.U:
             self.I.model[u].del_component('obj')
             def obj_rule_utmax(model):
-                exp0 = -self.Scn.pr[u] * sum(ADMM.rho[u,k]*model.g[k] - (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) - (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
-                exp1 = ADMM.r_1*self.Scn.pr[u]/2.0 * sum( ( sum(ADMM.q[u,r,s,k] for r in self.R for s in self.S) - model.g[k])** 2 for k in self.K )
+                exp0 = - sum(ADMM.rho[u,k]*model.g[k] - (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) - (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
+                exp1 = ADMM.r_1/2.0 * sum( ( sum(ADMM.q[u,r,s,k] for r in self.R for s in self.S) - model.g[k])** 2 for k in self.K )
                 exp2 = sum( ADMM.lbda[u,k]*(model.c[k] - ADMM.znu[k]) for k in self.K )
                 exp3 = ADMM.r_2/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
                 return exp0 + exp1 + exp2 + exp3
+
+            self.I.model[u].add_component('obj', Objective(rule=obj_rule_utmax, sense=minimize))
+            c_u, g_u = self.I.profit_maximization(ADMM,u)
+            for k in self.K:
+                c[u,k] = c_u[k]
+                g[u,k] = g_u[k]
+        ADMM.c = c
+        ADMM.g = g
+
+        print ('Calculate facility location choice:')
+        q = {}
+        for u in self.Scn.U:
+            q_u = self.C.logit_facility_choice(ADMM, u)
+            for r in self.R:
+                for s in self.S:
+                    for k in self.K:
+                        q[u,r,s,k] = q_u[r,s,k]
+        return q, c, g 
+
+    def step_1(self, ADMM, ipoptObjs):
+        print ('Starting Step 1:')
+        print ('Solving investor profit maximization')
+        c = {}
+        g = {}
+        for u in self.Scn.U:
+            self.I.model[u].del_component('obj')
+
+            def obj_rule_utmax(model):
+                exp0 = - sum(ADMM.rho[u,k]*model.g[k] - (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) - (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
+                exp1 = ADMM.r_1/2.0 * sum( ( sum(ADMM.q[u,r,s,k] for r in self.R for s in self.S) - model.g[k])** 2 for k in self.K )
+                exp2 = sum( ADMM.lbda[u,k]*(model.c[k] - ADMM.znu[k]) for k in self.K )
+                exp3 = ADMM.r_2/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
+                return exp0 + exp1 + exp2 + exp3
+
             self.I.model[u].add_component('obj', Objective(rule=obj_rule_utmax, sense=minimize))
             c_u, g_u = self.I.profit_maximization(ADMM,u)
             for k in self.K:
@@ -61,22 +96,6 @@ class Network:
 
             
             q_u, x_u, v_u, x1_u, x2_u = self.C.traffic_problem(u, ipoptObjs[u])
-            # TODO
-            #self.C.model[u].q.setinitial()
-            #ipoptObjs[u].update_var(self.C.model[u].q)
-            ## delate variables
-            #self.C.model[u].del_component('q')
-            #self.C.model[u].del_component('x')
-            #self.C.model[u].del_component('x1')
-            #self.C.model[u].del_component('x2')
-            #self.C.model[u].del_component('v')
-            ## create variables with new initial values for next iteration warm start with prime variables.
-            #self.C.model[u].add_component('q', Var(self.C.R, self.C.S, self.C.K, within=NonNegativeReals, initialize=q_u))
-            #self.C.model[u].add_component('x', Var(self.C.A, self.C.R, self.C.S, self.C.K, within=NonNegativeReals, initialize=x_u))
-            #self.C.model[u].add_component('x1', Var(self.C.A, self.C.R, self.C.S, self.C.K, within=NonNegativeReals, initialize=x1_u))
-            #self.C.model[u].add_component('x2', Var(self.C.A, self.C.R, self.C.S, self.C.K, within=NonNegativeReals, initialize=x2_u))
-            #self.C.model[u].add_component('v', Var(self.C.A, within=NonNegativeReals, initialize=v_u))
-
 
             for (i,j) in self.A:
                 v[u,i,j] = v_u[i,j]
@@ -102,10 +121,10 @@ class Network:
         rho_new = {}
         la_new = {}
         for k in self.K:
-            z_new[k] = sum(ADMM.c[u, k] for u in self.Scn.U)/len(self.Scn.U)
+            z_new[k] = sum(ADMM.c[u, k] * self.Scn.pr[u] for u in self.Scn.U) # modified  on Jul. 14
         for u in self.Scn.U:
             for k in self.K:
-                rho_new[u,k] = ADMM.rho[u,k] + ADMM.r_1 * self.Scn.pr[u]*(sum(sum(ADMM.q[u,r,s,k] for r in self.R) for s in self.S) - ADMM.g[u,k])
+                rho_new[u,k] = ADMM.rho[u,k] + ADMM.r_1 *(sum(sum(ADMM.q[u,r,s,k] for r in self.R) for s in self.S) - ADMM.g[u,k])
                 la_new[u,k] = ADMM.lbda[u,k] + ADMM.r_2 * (ADMM.c[u,k]-z_new[k] )
         return z_new, rho_new, la_new
 
@@ -114,7 +133,7 @@ class Network:
         y = 500
         for u in self.Scn.U:
             for k in self.K:
-                rho_0[u,k]=y-400.0*np.random.uniform(low = -1, high = 1)
+                rho_0[u,k]=y+2000*np.random.uniform(low = -1, high = 1)
         q_0  = {}
         for u in self.Scn.U:
             for r in self.R:
@@ -136,8 +155,8 @@ class Network:
                 g_0[u,k] = 0.0
         Algo = ADMM(rho=rho_0,
                     q=q_0,
-                    r1=500,#ADMM
-                    r2=10,#PH
+                    r1=1,#ADMM
+                    r2=1,#PH
 #                   pr=,
                     la=la_0,
                     z=z_0,
@@ -280,8 +299,8 @@ class Investors(Network):
         model.c = Var(self.K, within=NonNegativeReals,initialize=1e5)
         model.g = Var(self.K, within=NonNegativeReals,initialize=1e5)
         def obj_rule(model):
-            exp0 = -self.Scn.pr[u] * sum(ADMM.rho[u,k]*model.g[k] - (self.ca*model.c[k]**2 + self.cb*model.c[k]) - (self.ga*model.g[k]**2+self.gb*model.g[k]) for k in self.K)
-            exp1 = ADMM.r_1*self.Scn.pr[u]/2.0 * sum( ( sum(ADMM.q[u,r,s,k] for r in self.R for s in self.S) - model.g[k])** 2 for k in self.K )
+            exp0 = -sum(ADMM.rho[u,k]*model.g[k] - (self.ca*model.c[k]**2 + self.cb*model.c[k]) - (self.ga*model.g[k]**2+self.gb*model.g[k]) for k in self.K)
+            exp1 = ADMM.r_1/2.0 * sum( ( sum(ADMM.q[u,r,s,k] for r in self.R for s in self.S) - model.g[k])** 2 for k in self.K )
             exp2 = sum( ADMM.lbda[u,k]*(model.c[k] - ADMM.znu[k]) for k in self.K )
             exp3 = ADMM.r_2/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
             return exp0 + exp1 + exp2 + exp3
@@ -407,13 +426,46 @@ class Consumers(Network):
                 for k in self.K:
                     q[r,s,k]=value(self.model[u].q[r,s,k])
         return q, x, v, x1, x2
+
     def logit_facility_choice(self, ADMM, u):
         q={}
         for r in self.R:
             for s in self.S:
                 for k in self.K:
-                    q[r,s,k]= self.d[r,s] * self.Scn.growth[u] *(np.exp(self.b0[k] - self.b1*ADMM.tt[r,s] + self.b2*ADMM.c[u,k] - self.b3*ADMM.rho[u,k]))/(sum(np.exp(self.b0[k1] - self.b1*ADMM.tt[r,s, k1] + self.b2*ADMM.c[u,k1] - self.b3*ADMM.rho[u,k1] for k1 in self.K))
+                    #u directly calculated q using logit model may lead to numerical issue because denominator is zero.
+                    q[r,s,k]= self.d[r,s] * self.Scn.growth[u] *(np.exp(self.b0[k] - self.b1*ADMM.tt[u][r,s,k] + self.b2*ADMM.c[u,k] - self.b3*ADMM.rho[u,k]))/(sum(np.exp(self.b0[k1] - self.b1*ADMM.tt[u][r,s, k1] + self.b2*ADMM.c[u,k1] - self.b3*ADMM.rho[u,k1]) for k1 in self.K))
+              #      q[r,s,k]= self.d[r,s] * self.Scn.growth[u] /(sum(np.exp(self.b0[k1] - self.b1*ADMM.tt[u][r,s, k1] + self.b2*ADMM.c[u,k1] - self.b3*ADMM.rho[u,k1] - (self.b0[k] - self.b1*ADMM.tt[u][r,s, k] + self.b2*ADMM.c[u,k] - self.b3*ADMM.rho[u,k])  ) for k1 in self.K))
+    
         return q 
+
+    def calculate_travel_time(self, u):
+        tt={}
+        optsolver = SolverFactory(nlsol)
+        results = optsolver.solve(self.model[u], tee = True)
+        for r in self.R:
+            for s in self.S:
+                for k in self.K:
+                    tt[r,s,k] = ((self.model[u].dual[self.model[u].conc2[r,s,k, r]]-self.model[u].dual[self.model[u].conc2[r,s,k, k]]) + (self.model[u].dual[self.model[u].conc3[r,s,k, k]] - self.model[u].dual[self.model[u].conc3[r,s,k, s]]))/(self.b1/self.b3)
+                   
+                   # debug code: see if the calculation of travel time is correct
+                    #if r == 21 and (s == 20):
+                   #     print(self.tff[r,k]*(1+(self.b[r,k]*(value(self.model[u].v[r,k])**(self.alpha[r,k]))/(self.cap[r,k]**(self.alpha[r,k])))))
+                   #     print(value(self.model[u].x[r,k,r,s,k]))
+                   #     print(value(self.model[u].x[k,s,r,s,k]))
+                   #     print(value(self.model[u].q[r,s,k]))
+                   #     print(self.model[u].dual[self.model[u].conc2[r,s,k, r]])
+                   #     print(self.model[u].dual[self.model[u].conc2[r,s,k, k]])
+                   #     print(self.model[u].dual[self.model[u].conc3[r,s,k, k]])
+                   #     print(self.model[u].dual[self.model[u].conc3[r,s,k, s]])
+                   #     print(self.model[u].dual[self.model[u].cond[r,s]])
+                   #     for (i,j) in self.A:
+                   #         print(i, j, '  ', self.model[u].dual[self.model[u].conb2[i,j, r, s, k]])
+
+
+                    print('travel_time: (%i, %i, %i) at scenario %i: %f' % (r,s,k,u, tt[r,s,k]))
+                
+
+        return tt 
 
 class ADMM:
     def __init__(self, rho, q, r1, r2, la, z, c, g):#, growth):#pr,
@@ -438,11 +490,11 @@ class Scenarios:
         self.U = U
         self.pr = pr
 
-def Example():
+def Example(identical_scen, congestion):
     S = [1,7,14,20,24]
     R = [2,11,13,19,21]
     K = [3,6,12,17,22]
-    U = set(range(1,3))
+    U = set(range(1,6))
     N = set(range(1,25))
     A = [(1,2),(1,3),
         (2,1),(2,6),
@@ -474,9 +526,10 @@ def Example():
     b0 = {}
     for k in K:
         b0[k] = 0.0 # locational attractiveness
-    b1 = 1 # travel time
+    #b1 = 1 # travel time
+    b1 = 0.001 # travel time
     b2 = 0.0 # capacity
-    b3 = 0.06 # price
+    b3 = 0.001 # price
 
     # income parameters for orgin and destination
     inc = {}
@@ -494,9 +547,11 @@ def Example():
     random.seed(1)
     growth = {}
     for u in U:
-        growth[u] = random.uniform(1,3)
-
-
+        if identical_scen:
+            growth[u] = 1 
+        else:
+            growth[u] = random.uniform(1,1.2)
+        print('growth at scen ', u, ': ', growth[u])
     
     # Probablity
     pr = {}
@@ -504,7 +559,10 @@ def Example():
         pr[u] = random.uniform(0,1) 
     pr_sum = sum(pr[u] for u in U)
     for u in U:
-        pr[u] = pr[u]/pr_sum
+        if identical_scen:
+            pr[u] = 1/len(U)
+        else:
+            pr[u] = pr[u]/pr_sum
 
     Scen = {}
     Scen = Scenarios(growth, U, pr)
@@ -516,7 +574,10 @@ def Example():
     b = {}
     for (r,s) in A:
         alpha[r,s] = 4.0
-        b[r,s] = 0.15
+        if congestion:
+            b[r,s] = 0.15
+        else:
+            b[r,s] = 0
 
     cap[1,2]=776.682805381695
     cap[1,3]=701.812139046214
@@ -594,6 +655,9 @@ def Example():
     cap[24,13]=152.674149749451
     cap[24,21]=146.499761559384
     cap[24,23]=152.291877350765
+    
+    for (i,j) in A:
+        cap[i,j] = cap[i,j]*1
 
     tff[1,2]=12
     tff[1,3]=8
@@ -671,7 +735,8 @@ def Example():
     tff[24,13]=8
     tff[24,21]=6
     tff[24,23]=4
-
+    for (i,j) in A:
+        tff[i,j] = tff[i,j] *1
     # incidence matrix nodes to link
     mA = {}
     for n in N:
@@ -739,6 +804,7 @@ def Example():
     for r in R:
         for s in S:
             e[r,s]=1.0
+            # need to double check the objective function has e[]
 
     Ntw = Network(nodes=N,
                   links=A,
@@ -788,14 +854,17 @@ def Example():
     return Ntw
 
 if __name__ == "__main__":
-    Ntw = Example()
+    congestion = False 
+    identical_scen = True 
+    Ntw = Example(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start = time.time()
     SD_tol = 1
     ES_tol = 1
     print ('Stopping critieria %f' % ES_tol)
-    Maxit = 200
+    Maxit = 100
+    Pre_Iter = 100
     EE = {} # excess supply
     SS = {} # scenario difference
     RR = {} # prices
@@ -808,10 +877,17 @@ if __name__ == "__main__":
         Ntw.I.model[u] = Ntw.I.profit_maximization_model(Algo,u)
         Ntw.C.model[u] = Ntw.C.traffic_problem_model(Algo,u)
         ipoptObjs[u] = SolverFactory(nlsol)
+        Algo.tt[u] = Ntw.C.calculate_travel_time(u)
     for iter in range(Maxit):
         time_bq[iter] = time.time()
         print ('Start iteration %i\t' % iter)
-        Algo.q, Algo.x, Algo.v, Algo.c, Algo.g, Algo.x1, Algo.x2 = Ntw.step_1(Algo, ipoptObjs)
+
+        if iter < Pre_Iter:
+            #Algo.r_1 = min(1.05*Algo.r_1, 5)
+            #Algo.r_2 = min(1.05*Algo.r_2, 5)
+            Algo.q, Algo.c, Algo.g = Ntw.step_0(Algo)
+        else:
+            Algo.q, Algo.x, Algo.v, Algo.c, Algo.g, Algo.x1, Algo.x2 = Ntw.step_1(Algo, ipoptObjs)
         Algo.znu, Algo.rho, Algo.lbda = Ntw.step_2(Algo)
         ES = Ntw.exsu(Algo)
         SD = Ntw.scen_diff(Algo)
@@ -822,13 +898,15 @@ if __name__ == "__main__":
         SS[iter] = SD
         EM[iter] = maxee
         SM[iter] = maxsd
+        #Algo.r_1, Algo.r_2 = calculate_r(RR, EE, SS)
         print ('Iteration %i ES_{max} %f, SD_{max} %f'% (iter,maxee, maxsd))
         if iter > 5:
             if maxee <= ES_tol and maxsd <= SD_tol:
                 if EM[iter-1] <= 1*ES_tol and EM[iter-2] <= 2*ES_tol and EM[iter-3] <= 3*ES_tol and SM[iter-1] <= 1*SD_tol and SM[iter-2] <= 2*SD_tol and SM[iter-3] <= 3*SD_tol:
-                    print ('Equilibrium found!')
-                    print ('Iteration %i ES_{max} %f, SD_{max} %f'% (iter,maxee, maxsd))
-                    break
+                    if iter > Pre_Iter or (not congestion):
+                        print ('Equilibrium found!')
+                        print ('Iteration %i ES_{max} %f, SD_{max} %f'% (iter,maxee, maxsd))
+                        break
         if time.time()-start > h_max*3600:
             print ('More than %i hours!'%h_max)
             break

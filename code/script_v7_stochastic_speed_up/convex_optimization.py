@@ -23,63 +23,6 @@ class Network:
         self.I = {}
         self.C = {}
 
-    def step_1(self, ADMM):
-        print ('Starting Step 1:')
-        print ('Solving investor profit maximization')
-        c = {}
-        g = {}
-        for u in self.Scn.U:
-            self.I.model[u].del_component('obj')
-            def obj_rule_utmax(model):
-                exp0 = -self.Scn.pr[u] * sum(ADMM.rho[u,k]*model.g[k] - (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) - (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
-                exp1 = ADMM.r_1*self.Scn.pr[u]/2.0 * sum( ( sum(ADMM.q[u,r,s,k] for r in self.R for s in self.S) - model.g[k])** 2 for k in self.K )
-                exp2 = sum( ADMM.lbda[u,k]*(model.c[k] - ADMM.znu[k]) for k in self.K )
-                exp3 = ADMM.r_2/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
-                return exp0 + exp1 + exp2 + exp3
-            self.I.model[u].add_component('obj', Objective(rule=obj_rule_utmax, sense=minimize))
-            c_u, g_u = self.I.profit_maximization(ADMM,u)
-            for k in self.K:
-                c[u,k] = c_u[k]
-                g[u,k] = g_u[k]
-        ADMM.c = c
-        ADMM.g = g
-        print ('Solving combined distribution and assignment problem')
-        q = {}
-        x = {}
-        v = {}
-        for u in self.Scn.U:
-            self.C.model[u].del_component('obj')
-            def obj_rule_tap(model):
-                exp0 = sum(self.C.tff[r,s]*(model.v[r,s]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.C.A)
-                exp1 = 1.0/self.C.b1*( sum( model.q[r,s,k]*( pyolog(model.q[r,s,k]) - 1.0 + self.C.b3*ADMM.rho[u,k] -self.C.b0[k] - self.C.b2*ADMM.c[u,k] ) for k in self.K for s in self.S for r in self.R))
-                exp2 =  sum((sum(self.C.e[r,s]*model.q[r, s, k] for r in self.R for s in self.S ) - ADMM.g[u, k])** 2 for k in self.K )
-                return self.C.b1/self.C.b3*(exp0 + exp1) + ADMM.r_1/2.0 * exp2
-            self.C.model[u].add_component('obj', Objective(rule=obj_rule_tap, sense=minimize))
-            q_u, x_u, v_u = self.C.traffic_problem(ADMM,u)
-            for (i,j) in self.A:
-                v[u,i,j] = v_u[i,j]
-            for r in self.R:
-                for s in self.S:
-                    for k in self.K:
-                        q[u,r,s,k] = q_u[r,s,k]
-                        for (i,j) in self.A:
-                            x[u, i,j, r,s,k] = x_u[i,j,r,s,k]
-        return q, x, v, c, g
-
-    def step_2(self, ADMM):
-        print ('Starting Step 2:')
-        print ('Updating z, rho, lambda')
-        z_new = {}
-        rho_new = {}
-        la_new = {}
-        for k in self.K:
-            z_new[k] = sum(ADMM.c[u, k] for u in self.Scn.U)/len(self.Scn.U)
-        for u in self.Scn.U:
-            for k in self.K:
-                rho_new[u,k] = ADMM.rho[u,k] + ADMM.r_1 * self.Scn.pr[u]*(sum(sum(ADMM.q[u,r,s,k] for r in self.R) for s in self.S) - ADMM.g[u,k])
-                la_new[u,k] = ADMM.lbda[u,k] + ADMM.r_2 * (ADMM.c[u,k]-z_new[k] )
-        return z_new, rho_new, la_new
-
     def centralized_problem(self):
         model = AbstractModel('Convex Reformulation')
         model.c = Var(self.K, self.Scn.U, within=NonNegativeReals,initialize=1000.0)
@@ -101,7 +44,7 @@ class Network:
         model.obj = Objective(rule=obj_rule, sense=minimize)
 
         def market_clear_rule(model, k, u):
-            return sum( self.C.e[r,s]*model.q[r, s, k,u] for r in self.R for s in self.S) - model.g[k,u] == 0
+            return self.Scn.pr[u]*(sum( self.C.e[r,s]*model.q[r, s, k,u] for r in self.R for s in self.S) - model.g[k,u]) == 0
         model.market_clear = Constraint(self.K, self.Scn.U, rule = market_clear_rule)
 
         def capacity_rule(model, k, u):
@@ -145,6 +88,8 @@ class Network:
         results = optsolver.solve(inst, load_solutions=False)
         inst.solutions.load_from(results)
         rho_ans = {}
+        dual_cap = {}
+        dual_non_anti = {}
         x = {}
         v = {}
         q = {}
@@ -156,8 +101,14 @@ class Network:
 
         for u in self.Scn.U:
             for k in self.K:
-                rho_ans[u,k] = inst.dual[inst.market_clear[k,u]]
+                #rho_ans[u,k] = -inst.dual[inst.market_clear[k,u]]/self.Scn.pr[u] 
+                rho_ans[u,k] = -inst.dual[inst.market_clear[k,u]]
+                dual_cap[u,k] = -inst.dual[inst.capacity[k,u]]
+                dual_non_anti[u,k] = -inst.dual[inst.non_anti[k,u]]
+
                 print('Locational price at facility %i at scenario %i: %f' % (k,u, rho_ans[u,k]))
+                print('Dual capcity at facility %i at scenario %i: %f' % (k,u, dual_cap[u,k]))
+                print('Dual non_anticipativity at facility %i at scenario %i: %f' % (k,u, dual_non_anti[u,k]))
             for (i,j) in self.A:
                 v[i,j,u]=value(inst.v[i,j,u])
                 for r in self.R:
@@ -171,6 +122,100 @@ class Network:
             for k in self.K:
                 g[k,u]=value(inst.g[k,u])
                 c[k,u]=value(inst.c[k,u])
+        return g, c, q, x, v, rho_ans, z
+
+    def centralized_problem_no_non_anti(self):
+        model = AbstractModel('Convex Reformulation')
+        model.c = Var(self.K, within=NonNegativeReals,initialize=1000.0)
+        model.g = Var(self.K, self.Scn.U,  within=NonNegativeReals,initialize=500.0)
+        model.q = Var(self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals, initialize=500.0)#=1e-1)
+        model.v = Var(self.A, self.Scn.U, within=NonNegativeReals,initialize=0.0) # traffic flow
+        model.x = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)   # traffic flow on link a associated with O-D pairs (r,s) and passing k
+        # break up x into two pars: x1 and x2
+        model.x1 = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)
+        model.x2 = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)
+
+        def obj_rule(model):
+            exp0 = sum(self.I.ca*model.c[k]**2+self.I.cb*model.c[k] for k in self.K)
+            exp1 = sum(self.Scn.pr[u]*sum(self.I.ga*model.g[k, u]**2+self.I.gb*model.g[k, u] for k in self.K) for u in self.Scn.U)
+            exp20 = sum(self.Scn.pr[u]*sum(self.C.tff[r,s]*(model.v[r,s,u]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s,u]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.A) for u in self.Scn.U)
+            exp21 = sum(self.Scn.pr[u]*sum( model.q[r,s,k,u]*( pyolog(model.q[r,s,k,u]) - 1.0 - self.C.b0[k]) for k in self.K for s in self.S for r in self.R) for u in self.Scn.U)
+            return exp0 + exp1 + self.C.b1/self.C.b3 * ( exp20+ 1.0/self.C.b1*exp21)
+        model.obj = Objective(rule=obj_rule, sense=minimize)
+
+        def market_clear_rule(model, k, u):
+            return self.Scn.pr[u]*(sum( self.C.e[r,s]*model.q[r, s, k,u] for r in self.R for s in self.S) - model.g[k,u]) == 0
+        model.market_clear = Constraint(self.K, self.Scn.U, rule = market_clear_rule)
+
+        def capacity_rule(model, k, u):
+            return (model.g[k,u]-model.c[k]) <= 0
+        model.capacity = Constraint(self.K, self.Scn.U, rule=capacity_rule)
+
+        def conb_rule(model, i, j, u):
+            return sum( model.x[i,j,r,s,k,u] for k in self.K for s in self.S for r in self.R) == model.v[i,j,u]
+        model.conb = Constraint(self.A, self.Scn.U, rule=conb_rule)
+
+        def conb2_rule(model, i, j,r,s,k,u):
+            return model.x1[i,j,r,s,k,u] + model.x2[i,j,r,s,k,u] == model.x[i,j,r,s,k,u]
+        model.conb2 = Constraint(self.A, self.R, self.S, self.K, self.Scn.U, rule=conb2_rule)
+
+        def conc2_rule(model, r, s, k,n, u):
+            return sum(self.C.mA[n,i,j]*model.x1[i,j,r,s,k,u] for (i,j) in self.A) == model.q[r,s,k,u]*self.C.mE[n,r,k]
+        model.conc2 = Constraint(self.R, self.S, self.K, self.N,self.Scn.U, rule=conc2_rule)
+
+        def conc3_rule(model, r, s, k,n,u):
+            return sum(self.C.mA[n,i,j]*model.x2[i,j,r,s,k,u] for (i,j) in self.A) == model.q[r,s,k,u]*self.C.mE[n,k,s]
+        model.conc3 = Constraint(self.R, self.S, self.K, self.N, self.Scn.U, rule=conc3_rule)
+
+        def cond_rule(model, r, s, u):
+            return sum( model.q[r,s,k,u] for k in self.K) == self.C.d[r,s]*self.Scn.growth[u]
+        model.cond = Constraint(self.R, self.S, self.Scn.U, rule=cond_rule)
+        optsolver = SolverFactory(nlsol)
+        inst = model.create_instance()
+        inst.dual = Suffix(direction=Suffix.IMPORT)
+        # initialization
+
+#       inst.c[3].value = 585.8735090176859
+#       inst.c[6].value = 228.81446723201296
+#       inst.c[12].value = 472.7288981299494
+#       inst.c[17].value = 440.00420118220916
+#       inst.c[22].value = 772.5789256320681
+
+        results = optsolver.solve(inst, load_solutions=False)
+        inst.solutions.load_from(results)
+        rho_ans = {}
+        dual_cap = {}
+        dual_non_anti = {}
+        x = {}
+        v = {}
+        q = {}
+        g = {}
+        c = {}
+        z = {}
+        for k in self.K:
+            z[k] = value(inst.c[k])
+
+        for u in self.Scn.U:
+            for k in self.K:
+                #rho_ans[u,k] = -inst.dual[inst.market_clear[k,u]]/self.Scn.pr[u] 
+                rho_ans[u,k] = -inst.dual[inst.market_clear[k,u]]
+                dual_cap[u,k] = -inst.dual[inst.capacity[k,u]]
+
+                print('Locational price at facility %i at scenario %i: %f' % (k,u, rho_ans[u,k]))
+                print('Dual capcity at facility %i at scenario %i: %f' % (k,u, dual_cap[u,k]))
+            for (i,j) in self.A:
+                v[i,j,u]=value(inst.v[i,j,u])
+                for r in self.R:
+                    for s in self.S:
+                        for k in self.K:
+                            x[i,j,r,s,k,u]=value(inst.x[i,j,r,s,k,u])
+            for r in self.R:
+                for s in self.S:
+                    for k in self.K:
+                        q[r,s,k,u]=value(inst.q[r,s,k,u])
+            for k in self.K:
+                g[k,u]=value(inst.g[k,u])
+                c[k,u]=value(inst.c[k])
         return g, c, q, x, v, rho_ans, z
 
     def init_ADMM(self):
@@ -381,7 +426,7 @@ class Scenarios:
         self.U = U
         self.pr = pr
 
-def Example():
+def Example_old():
     S = [1,7,14,20,24]
     R = [2,11,13,19,21]
     K = [3,6,12,17,22] # [3,4, 5, 6, 8]
@@ -532,8 +577,7 @@ def Example():
     cap[22,23]=149.937603993344
     cap[23,14]=147.682260696526
     cap[23,22]=149.937603993344
-    cap[23,24]=152.291877350765
-    cap[24,13]=152.674149749451
+
     cap[24,21]=146.499761559384
     cap[24,23]=152.291877350765
 
@@ -729,8 +773,375 @@ def Example():
 
     return Ntw
 
+def Example(identical_scen, congestion):
+    S = [1,7,14,20,24]
+    R = [2,11,13,19,21]
+    K = [3,6,12,17,22]
+    U = set(range(1,6))
+    N = set(range(1,25))
+    A = [(1,2),(1,3),
+        (2,1),(2,6),
+        (3,1),(3,4),(3,12),
+        (4,3),(4,5),(4,11),
+        (5,4),(5,6),(5,9),
+        (6,2),(6,5),(6,8),
+        (7,8),(7,18),
+        (8,6),(8,7),(8,9),(8,16),
+        (9,5),(9,8),(9,10),
+        (10,9),(10,11),(10,15),(10,16),(10,17),
+        (11,4),(11,10),(11,12),(11,14),
+        (12,3),(12,11),(12,13),
+        (13,12),(13,24),
+        (14,11),(14,15),(14,23),
+        (15,10),(15,14),(15,19),(15,22),
+        (16,8),(16,10),(16,17),(16,18),
+        (17,10),(17,16),(17,19),
+        (18,7),(18,16),(18,20),
+        (19,15),(19,17),(19,20),
+        (20,18),(20,19),(20,21),(20,22),
+        (21,20),(21,22),(21,24),
+        (22,15),(22,20),(22,21),(22,23),
+        (23,14),(23,22),(23,24),
+        (24,13),(24,21),(24,23)]
+    I = [1]
+
+    # utility parameters for charging facility choice
+    b0 = {}
+    for k in K:
+        b0[k] = 0.0 # locational attractiveness
+    #b1 = 1 # travel time
+    b1 = 0.001 # travel time
+    b2 = 0.0 # capacity
+    b3 = 0.001 # price
+
+    # income parameters for orgin and destination
+    inc = {}
+    for r in R:
+        for s in S:
+            inc[r,s]=1.0
+
+    # travel demand between od
+    d = {}
+    for r in R:
+        for s in S:
+            d[r,s] = 100
+
+    # EV adoption rate
+    random.seed(1)
+    growth = {}
+    for u in U:
+        if identical_scen:
+            growth[u] = 1 
+        else:
+            growth[u] = random.uniform(1,1.2)
+        print('growth at scen ', u, ': ', growth[u])
+    
+    # Probablity
+    pr = {}
+    for u in U:
+        pr[u] = random.uniform(0,1) 
+    pr_sum = sum(pr[u] for u in U)
+    for u in U:
+        if identical_scen:
+            pr[u] = 1/len(U)
+        else:
+            pr[u] = pr[u]/pr_sum
+
+    Scen = {}
+    Scen = Scenarios(growth, U, pr)
+    # travel cost function: use BPR function
+
+    alpha = {}
+    cap = {}
+    tff = {}
+    b = {}
+    for (r,s) in A:
+        alpha[r,s] = 4.0
+        if congestion:
+            b[r,s] = 0.15
+        else:
+            b[r,s] = 0
+
+    cap[1,2]=776.682805381695
+    cap[1,3]=701.812139046214
+    cap[2,1]=776.682805381695
+    cap[2,6]=148.683553701964
+    cap[3,1]=701.812139046214
+    cap[3,4]=513.102185929618
+    cap[3,12]=701.812139046214
+    cap[4,3]=513.102185929618
+    cap[4,5]=533.261907932196
+    cap[4,11]=147.203543662937
+    cap[5,4]=533.261907932196
+    cap[5,6]=148.378117038357
+    cap[5,9]=299.875207986689
+    cap[6,2]=148.683553701964
+    cap[6,5]=148.378117038357
+    cap[6,8]=146.896498918528
+    cap[7,8]=235.156479757862
+    cap[7,18]=701.812139046214
+    cap[8,6]=146.896498918528
+    cap[8,7]=235.156479757862
+    cap[8,9]=151.442772302845
+    cap[8,16]=151.311709654105
+    cap[9,5]=299.875207986689
+    cap[9,8]=151.442772302845
+    cap[9,10]=417.299994674626
+    cap[10,9]=417.299994674626
+    cap[10,11]=299.875207986689
+    cap[10,15]=405.191427512271
+    cap[10,16]=145.586946014363
+    cap[10,17]=149.743005794701
+    cap[11,4]=147.203543662937
+    cap[11,10]=299.875207986689
+    cap[11,12]=147.203543662937
+    cap[11,14]=146.234393681294
+    cap[12,3]=701.812139046214
+    cap[12,11]=147.203543662937
+    cap[12,13]=776.682805381695
+    cap[13,12]=776.682805381695
+    cap[13,24]=152.674149749451
+    cap[14,11]=146.234393681294
+    cap[14,15]=153.761796139231
+    cap[14,23]=147.682260696526
+    cap[15,10]=405.191427512271
+    cap[15,14]=153.761796139231
+    cap[15,19]=436.760838013103
+    cap[15,22]=287.855626843116
+    cap[16,8]=151.311709654105
+    cap[16,10]=145.586946014363
+    cap[16,17]=156.83203678938
+    cap[16,18]=590.15131190678
+    cap[17,10]=149.743005794701
+    cap[17,16]=156.83203678938
+    cap[17,19]=144.658325876369
+    cap[18,7]=701.812139046214
+    cap[18,16]=590.15131190678
+    cap[18,20]=701.812139046214
+    cap[19,15]=436.760838013103
+    cap[19,17]=144.658325876369
+    cap[19,20]=150.015798343041
+    cap[20,18]=701.812139046214
+    cap[20,19]=150.015798343041
+    cap[20,21]=151.734226535192
+    cap[20,22]=152.207575142833
+    cap[21,20]=151.734226535192
+    cap[21,22]=156.83203678938
+    cap[21,24]=146.499761559384
+    cap[22,15]=287.855626843116
+    cap[22,20]=152.207575142833
+    cap[22,21]=156.83203678938
+    cap[22,23]=149.937603993344
+    cap[23,14]=147.682260696526
+    cap[23,22]=149.937603993344
+    cap[23,24]=152.291877350765
+    cap[24,13]=152.674149749451
+    cap[24,21]=146.499761559384
+    cap[24,23]=152.291877350765
+    
+    for (i,j) in A:
+        cap[i,j] = cap[i,j]*1
+
+    tff[1,2]=12
+    tff[1,3]=8
+    tff[2,1]=12
+    tff[2,6]=10
+    tff[3,1]=8
+    tff[3,4]=8
+    tff[3,12]=8
+    tff[4,3]=8
+    tff[4,5]=4
+    tff[4,11]=12
+    tff[5,4]=4
+    tff[5,6]=8
+    tff[5,9]=10
+    tff[6,2]=10
+    tff[6,5]=8
+    tff[6,8]=4
+    tff[7,8]=6
+    tff[7,18]=4
+    tff[8,6]=4
+    tff[8,7]=6
+    tff[8,9]=20
+    tff[8,16]=10
+    tff[9,5]=10
+    tff[9,8]=20
+    tff[9,10]=6
+    tff[10,9]=6
+    tff[10,11]=10
+    tff[10,15]=12
+    tff[10,16]=8
+    tff[10,17]=16
+    tff[11,4]=12
+    tff[11,10]=10
+    tff[11,12]=12
+    tff[11,14]=8
+    tff[12,3]=8
+    tff[12,11]=12
+    tff[12,13]=6
+    tff[13,12]=6
+    tff[13,24]=8
+    tff[14,11]=8
+    tff[14,15]=10
+    tff[14,23]=8
+    tff[15,10]=12
+    tff[15,14]=10
+    tff[15,19]=6
+    tff[15,22]=6
+    tff[16,8]=10
+    tff[16,10]=8
+    tff[16,17]=4
+    tff[16,18]=6
+    tff[17,10]=16
+    tff[17,16]=4
+    tff[17,19]=4
+    tff[18,7]=4
+    tff[18,16]=6
+    tff[18,20]=8
+    tff[19,15]=6
+    tff[19,17]=4
+    tff[19,20]=8
+    tff[20,18]=8
+    tff[20,19]=8
+    tff[20,21]=12
+    tff[20,22]=10
+    tff[21,20]=12
+    tff[21,22]=4
+    tff[21,24]=6
+    tff[22,15]=6
+    tff[22,20]=10
+    tff[22,21]=4
+    tff[22,23]=8
+    tff[23,14]=8
+    tff[23,22]=8
+    tff[23,24]=4
+    tff[24,13]=8
+    tff[24,21]=6
+    tff[24,23]=4
+    for (i,j) in A:
+        tff[i,j] = tff[i,j] *1
+    # incidence matrix nodes to link
+    mA = {}
+    for n in N:
+        for (r,s) in A:
+            if n == r:
+                mA[n,r,s]=1.0
+            elif n == s:
+                mA[n,r,s]=-1.0
+            else:
+                mA[n,r,s]=0.0
+
+    # incidence matrix nodes
+    mA_k={}
+    for n in N:
+        for (r,s) in A:
+            if n == r:
+                mA_k[n,r,s] = 1.0
+            else:
+                mA_k[n,r,s] = 0.0
+
+    # incidance matrix between nodes and origin/destination
+    mE = {}
+    for n in N:
+        for r in R:
+            for s in S:
+                mE[n,r,s]=0.0
+                if n == r:
+                    mE[n,r,s]=1.0
+                if n == s:
+                    mE[n,r,s]=-1.0
+                if r == s:
+                    mE[n,r,s]=0.0
+    # incidence matrix
+        for r in R:
+            for k in K:
+                mE[n,r,k]=0.0
+                if n == r:
+                    mE[n,r,k]=1.0
+                if n == k:
+                    mE[n,r,k]=-1.0
+                if r == k:
+                    mE[n,r,k]=0.0
+        for k in K:
+            for s in S:
+                mE[n,k,s]=0.0
+                if n == k:
+                    mE[n,k,s]=1.0
+                if n == s:
+                    mE[n,k,s]=-1.0
+                if s == k:
+                    mE[n,k,s]=0.0
+
+    # incidence matrix indicate nodes and charging
+    mE_k={}
+    for n in N:
+        for r in R:
+            for s in S:
+                for k in K:
+                    mE_k[n,r,s,k]=0.0
+                    if n == k:
+                        mE_k[n,r,s,k]=1.0
+
+    # average energy demand between orgin and destination
+    e = {}
+    for r in R:
+        for s in S:
+            e[r,s]=1.0
+            # need to double check the objective function has e[]
+
+    Ntw = Network(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios= Scen)
+#(N, A, R, S, K, I, b0, b1, b2, b3, inc, tff, b, alpha, cap, d, mA, mA_k, mE, mE_k, e)
+    costca = 0.100
+    costcb = 170
+    costga = 0.100
+    costgb = 130
+
+    Ntw.I = Investors(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios= Scen,
+                  costca=costca,
+                  costcb=costcb,
+                  costga=costga,
+                  costgb=costgb)
+
+    Ntw.C = Consumers(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios=Scen,
+                  b0=b0,
+                  b1=b1,
+                  b2=b2,
+                  b3=b3,
+                  inc=inc,
+                  tff=tff,
+                  b=b,
+                  alpha=alpha,
+                  cap=cap,
+                  d=d,
+                  mA=mA,
+                  mA_k=mA_k,
+                  mE=mE,
+                  mE_k=mE_k,
+                  e=e)
+
+    return Ntw
+
+
 if __name__ == "__main__":
-    Ntw = Example()
+    congestion = False 
+    identical_scen = True 
+    Ntw = Example(identical_scen, congestion)
+
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start = time.time()
@@ -745,6 +1156,7 @@ if __name__ == "__main__":
     EM = {} # max excess supply for all the locations
     SM = {} # max scenario difference for all the locations
     h_max = 4
+
     for u in Ntw.Scn.U:
         Ntw.I.model[u] = Ntw.I.profit_maximization_model(Algo,u)
         Ntw.C.model[u] = Ntw.C.traffic_problem_model(Algo,u)
@@ -755,7 +1167,11 @@ if __name__ == "__main__":
         #Algo.q, Algo.x, Algo.v, Algo.c, Algo.g = Ntw.step_1(Algo)
         #Algo.znu, Algo.rho, Algo.lbda = Ntw.step_2(Algo)
        
-        Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem()
+        #Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem()
+        Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem_no_non_anti()
+        print(Algo.g)
+        print(Algo.c)
+        print(Algo.q)
         ES = Ntw.exsu(Algo)
         SD = Ntw.scen_diff(Algo)
         maxee = max( abs(ES[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
