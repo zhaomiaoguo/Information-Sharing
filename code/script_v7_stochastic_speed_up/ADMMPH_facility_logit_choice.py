@@ -855,7 +855,7 @@ def Example(identical_scen, congestion):
 
 if __name__ == "__main__":
     congestion = False 
-    identical_scen = True 
+    identical_scen = False 
     Ntw = Example(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
