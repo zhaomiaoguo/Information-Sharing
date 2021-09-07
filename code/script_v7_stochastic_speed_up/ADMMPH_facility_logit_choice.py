@@ -854,6 +854,7 @@ def Example(identical_scen, congestion):
     return Ntw
 
 if __name__ == "__main__":
+    # this is the main function
     congestion = False 
     identical_scen = False 
     Ntw = Example(identical_scen, congestion)
