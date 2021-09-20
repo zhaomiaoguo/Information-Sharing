@@ -9,6 +9,7 @@ from time import perf_counter, strftime,localtime
 from pyomo.environ import log as pyolog
 import random
 import math
+from Transportaion_test_systems import import_matrix, transportation_network_topo
 quadsol = 'cplex'
 nlsol = 'ipopt'
 
@@ -853,11 +854,198 @@ def Example(identical_scen, congestion):
 
     return Ntw
 
+def Example_Anaheim(identical_scen, congestion):
+    S = [1,7,14,20,24]
+    R = [2,11,13,19,21]
+    K = [3,6,12,17,22]
+    U = set(range(1,6))
+    N, A, cap, tff = transportation_network_topo('Anaheim')
+
+    I = []
+
+    # utility parameters for charging facility choice
+    b0 = {}
+    for k in K:
+        b0[k] = 0.0 # locational attractiveness
+    #b1 = 1 # travel time
+    b1 = 0.001
+    b2 = 0.0 # capacity
+    b3 = 0.001 # price
+
+    # income parameters for orgin and destination
+    inc = {}
+    for r in R:
+        for s in S:
+            inc[r,s]=1.0
+
+    # travel demand between od
+    d = {}
+    for r in R:
+        for s in S:
+            d[r,s] = 100
+
+    # EV adoption rate
+    random.seed(1)
+    growth = {}
+    for u in U:
+        if identical_scen:
+            growth[u] = 1
+        else:
+            growth[u] = random.uniform(1,1.2)
+        print('growth at scen ', u, ': ', growth[u])
+
+    # Probablity
+    pr = {}
+    for u in U:
+        pr[u] = random.uniform(0,1)
+    pr_sum = sum(pr[u] for u in U)
+    for u in U:
+        if identical_scen:
+            pr[u] = 1/len(U)
+        else:
+            pr[u] = pr[u]/pr_sum
+
+    Scen = {}
+    Scen = Scenarios(growth, U, pr)
+    # travel cost function: use BPR function
+
+    alpha = {}
+    b = {}
+
+    for (r,s) in A:
+        alpha[r,s] = 4.0
+        if congestion:
+            b[r,s] = 0.15
+        else:
+            b[r,s] = 0
+
+    for (i,j) in A:
+        cap[i,j] = cap[i,j] * 1
+
+    for (i,j) in A:
+        tff[i,j] = tff[i,j] *1
+    # incidence matrix nodes to link
+    mA = {}
+    for n in N:
+        for (r,s) in A:
+            if n == r:
+                mA[n,r,s]=1.0
+            elif n == s:
+                mA[n,r,s]=-1.0
+            else:
+                mA[n,r,s]=0.0
+
+    # incidence matrix nodes
+    mA_k={}
+    for n in N:
+        for (r,s) in A:
+            if n == r:
+                mA_k[n,r,s] = 1.0
+            else:
+                mA_k[n,r,s] = 0.0
+
+    # incidance matrix between nodes and origin/destination
+    mE = {}
+    for n in N:
+        for r in R:
+            for s in S:
+                mE[n,r,s]=0.0
+                if n == r:
+                    mE[n,r,s]=1.0
+                if n == s:
+                    mE[n,r,s]=-1.0
+                if r == s:
+                    mE[n,r,s]=0.0
+    # incidence matrix
+        for r in R:
+            for k in K:
+                mE[n,r,k]=0.0
+                if n == r:
+                    mE[n,r,k]=1.0
+                if n == k:
+                    mE[n,r,k]=-1.0
+                if r == k:
+                    mE[n,r,k]=0.0
+        for k in K:
+            for s in S:
+                mE[n,k,s]=0.0
+                if n == k:
+                    mE[n,k,s]=1.0
+                if n == s:
+                    mE[n,k,s]=-1.0
+                if s == k:
+                    mE[n,k,s]=0.0
+
+    # incidence matrix indicate nodes and charging
+    mE_k={}
+    for n in N:
+        for r in R:
+            for s in S:
+                for k in K:
+                    mE_k[n,r,s,k]=0.0
+                    if n == k:
+                        mE_k[n,r,s,k]=1.0
+
+    # average energy demand between orgin and destination
+    e = {}
+    for r in R:
+        for s in S:
+            e[r,s]=1.0
+            # need to double check the objective function has e[]
+
+    Ntw = Network(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios= Scen)
+#(N, A, R, S, K, I, b0, b1, b2, b3, inc, tff, b, alpha, cap, d, mA, mA_k, mE, mE_k, e)
+    costca = 0.100
+    costcb = 170
+    costga = 0.100
+    costgb = 130
+
+    Ntw.I = Investors(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios= Scen,
+                  costca=costca,
+                  costcb=costcb,
+                  costga=costga,
+                  costgb=costgb)
+
+    Ntw.C = Consumers(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios=Scen,
+                  b0=b0,
+                  b1=b1,
+                  b2=b2,
+                  b3=b3,
+                  inc=inc,
+                  tff=tff,
+                  b=b,
+                  alpha=alpha,
+                  cap=cap,
+                  d=d,
+                  mA=mA,
+                  mA_k=mA_k,
+                  mE=mE,
+                  mE_k=mE_k,
+                  e=e)
+
+    return Ntw
+
 if __name__ == "__main__":
     # this is the main function
     congestion = False 
     identical_scen = False 
-    Ntw = Example(identical_scen, congestion)
+    #ntw = Example(identical_scen, congestion)
+    Ntw = Example_Anaheim(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start = time.time()
