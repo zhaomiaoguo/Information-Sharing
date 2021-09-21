@@ -43,7 +43,7 @@ def transportation_network_topo(network_name):
     # Importing the networks into a Pandas dataframe consists of a single line of code
     # but we can also make sure all headers are lower case and without trailing spaces
     
-    netfile = os.path.join(root,'TransportationNetworks', network_name, network_name+'_net.tntp')
+    netfile = os.path.join(root,'TransportationNetworks_test', network_name, network_name+'_net.tntp')
     net = pd.read_csv(netfile, skiprows=8, sep='\t')
 
     trimmed= [s.strip().lower() for s in net.columns]
