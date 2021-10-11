@@ -855,9 +855,9 @@ def Example(identical_scen, congestion):
     return Ntw
 
 def Example_Anaheim(identical_scen, congestion):
-    S = [1,7,14,20,24]
-    R = [2,11,13,19,21]
-    K = [3,6,12,17,22]
+    S = [2,34,21,29,41]
+    R = [10,25,28,39,24]
+    K = [5,9,13,12,16]
     U = set(range(1,6))
     N, A, cap, tff = transportation_network_topo('Anaheim')
 
@@ -1052,8 +1052,8 @@ if __name__ == "__main__":
     SD_tol = 1
     ES_tol = 1
     print ('Stopping critieria %f' % ES_tol)
-    Maxit = 100
-    Pre_Iter = 100
+    Maxit = 50
+    Pre_Iter = 20
     EE = {} # excess supply
     SS = {} # scenario difference
     RR = {} # prices

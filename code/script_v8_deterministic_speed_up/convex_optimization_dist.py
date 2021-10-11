@@ -7,6 +7,8 @@ import time
 import os
 from time import perf_counter, strftime,localtime
 from pyomo.environ import log as pyolog
+from Transportaion_test_systems import import_matrix, transportation_network_topo
+import random
 
 quadsol = 'cplex'
 nlsol = 'ipopt'
@@ -22,6 +24,107 @@ class Network:
                 self.I = {}
                 self.C = {}
                 
+                
+        def centralized_problem(self):
+           model = AbstractModel('Convex Reformulation')
+           model.c = Var(self.K, self.Scn.U, within=NonNegativeReals,initialize=1000.0)
+           model.z = Var(self.K, within=NonNegativeReals,initialize=1000.0)
+           model.g = Var(self.K, self.Scn.U,  within=NonNegativeReals,initialize=500.0)
+           model.q = Var(self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals, initialize=500.0)#=1e-1)
+           model.v = Var(self.A, self.Scn.U, within=NonNegativeReals,initialize=0.0) # traffic flow
+           model.x = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)   # traffic flow on link a associated with O-D pairs (r,s) and passing k
+        # break up x into two pars: x1 and x2
+           model.x1 = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)
+           model.x2 = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)
+
+           def obj_rule(model):
+               exp0 = sum(self.Scn.pr[u]*sum(self.I.ca*model.c[k,u]**2+self.I.cb*model.c[k,u] for k in self.K) for u in self.Scn.U)
+               exp1 = sum(self.Scn.pr[u]*sum(self.I.ga*model.g[k, u]**2+self.I.gb*model.g[k, u] for k in self.K) for u in self.Scn.U)
+               exp20 = sum(self.Scn.pr[u]*sum(self.C.tff[r,s]*(model.v[r,s,u]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s,u]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.A) for u in self.Scn.U)
+               exp21 = sum(self.Scn.pr[u]*sum( model.q[r,s,k,u]*( pyolog(model.q[r,s,k,u]) - 1.0 - self.C.b0[k]) for k in self.K for s in self.S for r in self.R) for u in self.Scn.U)
+               return exp0 + exp1 + self.C.b1/self.C.b3 * ( exp20+ 1.0/self.C.b1*exp21)
+           model.obj = Objective(rule=obj_rule, sense=minimize)
+
+           def market_clear_rule(model, k, u):
+               return self.Scn.pr[u]*(sum( self.C.e[r,s]*model.q[r, s, k,u] for r in self.R for s in self.S) - model.g[k,u]) == 0
+           model.market_clear = Constraint(self.K, self.Scn.U, rule = market_clear_rule)
+
+           def capacity_rule(model, k, u):
+               return model.g[k,u]-model.c[k,u] <= 0
+           model.capacity = Constraint(self.K, self.Scn.U, rule=capacity_rule)
+
+           def non_anti_rule(model, k, u):
+               return model.c[k,u] == model.z[k]
+           model.non_anti = Constraint(self.K,self.Scn.U, rule=non_anti_rule)
+
+           def conb_rule(model, i, j, u):
+               return sum( model.x[i,j,r,s,k,u] for k in self.K for s in self.S for r in self.R) == model.v[i,j,u]
+           model.conb = Constraint(self.A, self.Scn.U, rule=conb_rule)
+
+           def conb2_rule(model, i, j,r,s,k,u):
+               return model.x1[i,j,r,s,k,u] + model.x2[i,j,r,s,k,u] == model.x[i,j,r,s,k,u]
+           model.conb2 = Constraint(self.A, self.R, self.S, self.K, self.Scn.U, rule=conb2_rule)
+
+           def conc2_rule(model, r, s, k,n, u):
+               return sum(self.C.mA[n,i,j]*model.x1[i,j,r,s,k,u] for (i,j) in self.A) == model.q[r,s,k,u]*self.C.mE[n,r,k]
+           model.conc2 = Constraint(self.R, self.S, self.K, self.N,self.Scn.U, rule=conc2_rule)
+
+           def conc3_rule(model, r, s, k,n,u):
+               return sum(self.C.mA[n,i,j]*model.x2[i,j,r,s,k,u] for (i,j) in self.A) == model.q[r,s,k,u]*self.C.mE[n,k,s]
+           model.conc3 = Constraint(self.R, self.S, self.K, self.N, self.Scn.U, rule=conc3_rule)
+
+           def cond_rule(model, r, s, u):
+               return sum( model.q[r,s,k,u] for k in self.K) == self.C.d[r,s]*self.Scn.growth[u]
+           model.cond = Constraint(self.R, self.S, self.Scn.U, rule=cond_rule)
+           optsolver = SolverFactory(nlsol)
+           inst = model.create_instance()
+           inst.dual = Suffix(direction=Suffix.IMPORT)
+        # initialization
+
+#       inst.c[3].value = 585.8735090176859
+#       inst.c[6].value = 228.81446723201296
+#       inst.c[12].value = 472.7288981299494
+#       inst.c[17].value = 440.00420118220916
+#       inst.c[22].value = 772.5789256320681
+
+           results = optsolver.solve(inst, load_solutions=False)
+           inst.solutions.load_from(results)
+           rho_ans = {}
+           dual_cap = {}
+           dual_non_anti = {}
+           x = {}
+           v = {}
+           q = {}
+           g = {}
+           c = {}
+           z = {}
+           for k in self.K:
+               z[k] = value(inst.z[k])
+
+           for u in self.Scn.U:
+               for k in self.K:
+                   #rho_ans[u,k] = -inst.dual[inst.market_clear[k,u]]/self.Scn.pr[u] 
+                   rho_ans[k,u] = -inst.dual[inst.market_clear[k,u]]
+                   dual_cap[u,k] = -inst.dual[inst.capacity[k,u]]
+                   dual_non_anti[u,k] = -inst.dual[inst.non_anti[k,u]]
+
+                   print('Locational price at facility %i at scenario %i: %f' % (k,u, rho_ans[k,u]))
+                   print('Dual capcity at facility %i at scenario %i: %f' % (k,u, dual_cap[u,k]))
+                   print('Dual non_anticipativity at facility %i at scenario %i: %f' % (k,u, dual_non_anti[u,k]))
+               for (i,j) in self.A:
+                   v[i,j,u]=value(inst.v[i,j,u])
+                   for r in self.R:
+                       for s in self.S:
+                           for k in self.K:
+                               x[i,j,r,s,k,u]=value(inst.x[i,j,r,s,k,u])
+               for r in self.R:
+                   for s in self.S:
+                       for k in self.K:
+                           q[r,s,k,u]=value(inst.q[r,s,k,u])
+               for k in self.K:
+                   g[k,u]=value(inst.g[k,u])
+                   c[k,u]=value(inst.c[k,u])
+           return g, c, q, x, v, rho_ans, z
 
         def step_1(self, ADMM):
                 print ('Starting Step 1:')
@@ -145,9 +248,9 @@ class Network:
                                         aux_p = aux_p+('%f'%(EvR[nu][u,k]))+';'
                                         aux_s = aux_s+('%f'%(EvES[nu][u,k]))+';'
                                         aux_sd = aux_sd+('%f'%(EvSD[nu][u,k]))+';'
-                                f_prices.write(aux_p+';\n')
-                                f_exsu.write(aux_s+';\n')
-                                f_scdi.write(aux_sd+';\n')
+                                f_prices.write(aux_p+',\n')
+                                f_exsu.write(aux_s+',\n')
+                                f_scdi.write(aux_sd+',\n')
                 f_prices.close()
                 f_exsu.close()
                 f_prices.close()
@@ -155,9 +258,9 @@ class Network:
                 f_data = open((res_path+name+'.dat'),'w')
                 for k in self.K:
                     for u in self.Scn.U:
-                                aux_data = '[%i, %i];'%(u, k)
-                                aux_data = aux_data+('%f'%(data[u, k]))+';'
-                                f_data.write(aux_data+';\n')
+                                aux_data = '[%i, %i],'%(u, k)
+                                aux_data = aux_data+('%f'%(data[u, k]))+','
+                                f_data.write(aux_data+',\n')
                 f_data.close()
                 
         def write_data_csv(self,data,name, res_path):
@@ -165,7 +268,19 @@ class Network:
                 for k in self.K:
                     for u in self.Scn.U:
                                 aux_data = 'scenario%i, Node%i,'%(u, k)
-                                aux_data = aux_data+('%f'%(data[u, k]))+','
+                                aux_data = aux_data+('%f'%(data[k, u]))+','
+                                f_data.write(aux_data+',\n')
+                f_data.close()
+                
+        def write_data_traffic_csv(self,data,name, res_path):
+                f_data = open((res_path+"_"+name+'.csv'),'w')
+                
+                for r in self.R:
+                    for s in self.S:
+                        for k in self.K:
+                            for u in self.Scn.U:
+                                aux_data = 'scenario%i,Origin%i,Destination%i,Facility%i,'%(u,r,s,k)
+                                aux_data = aux_data+('%f'%(data[r,s,k,u]))+','
                                 f_data.write(aux_data+',\n')
                 f_data.close()
 
@@ -731,20 +846,199 @@ def Example():
 
         return Ntw
 
+def Example_Anaheim(identical_scen,congestion):
+    S = [2,34,21,29,41]
+    R = [10,25,28,39,24]
+    K = [5,9,13,12,16]
+    U = set(range(1,2))
+    N, A, cap, tff = transportation_network_topo('Anaheim')
+
+    I = []
+    
+
+    # utility parameters for charging facility choice
+    b0 = {}
+    for k in K:
+        b0[k] = 0.0 # locational attractiveness
+    #b1 = 1 # travel time
+    b1 = 0.001
+    b2 = 0.0 # capacity
+    b3 = 0.001 # price
+
+    # income parameters for orgin and destination
+    inc = {}
+    for r in R:
+        for s in S:
+            inc[r,s]=1.0
+
+    # travel demand between od
+    d = {}
+    for r in R:
+        for s in S:
+            d[r,s] = 100
+
+    # EV adoption rate
+    # growth = {1:0.908838096}
+    growth = {1:1}
+
+    # Probablity
+    pr = {}
+    for u in U:
+        pr[u] = random.uniform(0,1)
+    pr_sum = sum(pr[u] for u in U)
+    for u in U:
+        if identical_scen:
+            pr[u] = 1/len(U)
+        else:
+            pr[u] = pr[u]/pr_sum
+
+    Scen = {}
+    Scen = Scenarios(growth, U, pr)
+    # travel cost function: use BPR function
+
+    alpha = {}
+    b = {}
+
+    for (r,s) in A:
+        alpha[r,s] = 4.0
+        if congestion:
+            b[r,s] = 0.15
+        else:
+            b[r,s] = 0
+
+    for (i,j) in A:
+        cap[i,j] = cap[i,j] * 1
+
+    for (i,j) in A:
+        tff[i,j] = tff[i,j] *1
+    # incidence matrix nodes to link
+    mA = {}
+    for n in N:
+        for (r,s) in A:
+            if n == r:
+                mA[n,r,s]=1.0
+            elif n == s:
+                mA[n,r,s]=-1.0
+            else:
+                mA[n,r,s]=0.0
+
+    # incidence matrix nodes
+    mA_k={}
+    for n in N:
+        for (r,s) in A:
+            if n == r:
+                mA_k[n,r,s] = 1.0
+            else:
+                mA_k[n,r,s] = 0.0
+
+    # incidance matrix between nodes and origin/destination
+    mE = {}
+    for n in N:
+        for r in R:
+            for s in S:
+                mE[n,r,s]=0.0
+                if n == r:
+                    mE[n,r,s]=1.0
+                if n == s:
+                    mE[n,r,s]=-1.0
+                if r == s:
+                    mE[n,r,s]=0.0
+    # incidence matrix
+        for r in R:
+            for k in K:
+                mE[n,r,k]=0.0
+                if n == r:
+                    mE[n,r,k]=1.0
+                if n == k:
+                    mE[n,r,k]=-1.0
+                if r == k:
+                    mE[n,r,k]=0.0
+        for k in K:
+            for s in S:
+                mE[n,k,s]=0.0
+                if n == k:
+                    mE[n,k,s]=1.0
+                if n == s:
+                    mE[n,k,s]=-1.0
+                if s == k:
+                    mE[n,k,s]=0.0
+
+    # incidence matrix indicate nodes and charging
+    mE_k={}
+    for n in N:
+        for r in R:
+            for s in S:
+                for k in K:
+                    mE_k[n,r,s,k]=0.0
+                    if n == k:
+                        mE_k[n,r,s,k]=1.0
+
+    # average energy demand between orgin and destination
+    e = {}
+    for r in R:
+        for s in S:
+            e[r,s]=1.0
+            # need to double check the objective function has e[]
+
+    Ntw = Network(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios= Scen)
+#(N, A, R, S, K, I, b0, b1, b2, b3, inc, tff, b, alpha, cap, d, mA, mA_k, mE, mE_k, e)
+    costca = 0.100
+    costcb = 170
+    costga = 0.100
+    costgb = 130
+
+    Ntw.I = Investors(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios= Scen,
+                  costca=costca,
+                  costcb=costcb,
+                  costga=costga,
+                  costgb=costgb)
+
+    Ntw.C = Consumers(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios=Scen,
+                  b0=b0,
+                  b1=b1,
+                  b2=b2,
+                  b3=b3,
+                  inc=inc,
+                  tff=tff,
+                  b=b,
+                  alpha=alpha,
+                  cap=cap,
+                  d=d,
+                  mA=mA,
+                  mA_k=mA_k,
+                  mE=mE,
+                  mE_k=mE_k,
+                  e=e)
+
+    return Ntw
 
 
 if __name__ == "__main__":
         congestion = False 
         identical_scen = True 
-        # Ntw = Example_Anaheim(identical_scen,congestion)
-        Ntw = Example()
+        Ntw = Example_Anaheim(identical_scen,congestion)
         Algo = Ntw.init_ADMM()
         time_bq = {}
         start = time.time()
         SD_tol = 0.1
         ES_tol = 0.1
         print ('Stopping critieria %f' % ES_tol)
-        Maxit = 300
+        Maxit = 1
         CC = {}
         EE = {} # excess supply
         SS = {} # scenario difference
@@ -759,25 +1053,26 @@ if __name__ == "__main__":
         for iter in range(Maxit):
                 time_bq[iter] = time.time()
                 print ('Start iteration %i\t' % iter)
-                Algo.q, Algo.x, Algo.v, Algo.c, Algo.g = Ntw.step_1(Algo)
-                Algo.znu, Algo.rho, Algo.lbda = Ntw.step_2(Algo)
-                ES = Ntw.exsu(Algo)
-                SD = Ntw.scen_diff(Algo)
-                maxee = max( abs(ES[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
-                maxsd = max( abs(SD[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
+                Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem()
+                # Algo.q, Algo.x, Algo.v, Algo.c, Algo.g = Ntw.step_1(Algo)
+                # Algo.znu, Algo.rho, Algo.lbda = Ntw.step_2(Algo)
+                # ES = Ntw.exsu(Algo)
+                # SD = Ntw.scen_diff(Algo)
+                # maxee = max( abs(ES[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
+                # maxsd = max( abs(SD[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
                 CC[iter] = Algo.c
                 RR[iter] = Algo.rho
-                EE[iter] = ES
-                SS[iter] = SD
-                EM[iter] = maxee
-                SM[iter] = maxsd
-                print ('Iteration %i ES_{max} %f, SD_{max} %f'% (iter,maxee, maxsd))
-                if iter > 5:
-                    if maxee <= ES_tol and maxsd <= SD_tol:
-                        if EM[iter-1] <= 1*ES_tol and EM[iter-2] <= 2*ES_tol and EM[iter-3] <= 3*ES_tol and SM[iter-1] <= 1*SD_tol and SM[iter-2] <= 2*SD_tol and SM[iter-3] <= 3*SD_tol:
-                            print ('Equilibrium found!')
-                            print ('Iteration %i ES_{max} %f, SD_{max} %f'% (iter,maxee, maxsd))
-                            break
+                # EE[iter] = ES
+                # SS[iter] = SD
+                # EM[iter] = maxee
+                # SM[iter] = maxsd
+                # print ('Iteration %i ES_{max} %f, SD_{max} %f'% (iter,maxee, maxsd))
+                # if iter > 5:
+                #     if maxee <= ES_tol and maxsd <= SD_tol:
+                #         if EM[iter-1] <= 1*ES_tol and EM[iter-2] <= 2*ES_tol and EM[iter-3] <= 3*ES_tol and SM[iter-1] <= 1*SD_tol and SM[iter-2] <= 2*SD_tol and SM[iter-3] <= 3*SD_tol:
+                #             print ('Equilibrium found!')
+                #             print ('Iteration %i ES_{max} %f, SD_{max} %f'% (iter,maxee, maxsd))
+                #             break
                 if time.time()-start > h_max*3600:
                     print ('More than %i hours!'%h_max)
                     break
@@ -785,7 +1080,10 @@ if __name__ == "__main__":
         el_time = end - start
         print ('Elapsed time %f' % el_time)
         pname='Results'
-        os.system('mkdir '+pname)
-        Ntw.write_evs(EvES=EE,EvSD=SS,EvR=RR,res_path=pname)
-        Ntw.write_data(CC[iter], 'capacity',res_path=pname )
-
+        # os.system('mkdir '+pname)
+        # Ntw.write_evs(EvES=EE,EvSD=SS,EvR=RR,res_path=pname)
+        # Ntw.write_data(CC[iter], 'capacity',res_path=pname )
+        Ntw.write_data_csv(CC[iter], 'capacity',res_path=pname )
+        Ntw.write_data_csv(Algo.g, 'services',res_path=pname )
+        Ntw.write_data_csv(RR[iter], 'prices',res_path=pname )
+        Ntw.write_data_traffic_csv(Algo.q,'traffic', res_path=pname)

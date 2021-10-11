@@ -271,13 +271,13 @@ class Network:
         return SD
 
     # all the output can be saved in this function.
-    def write_evs(self,EvES,EvSD,EvR,g,c,q,res_path):
-        f_exsu = open((res_path+'/Resulting_exsu.csv'),'w')
-        f_scdi = open((res_path+'/Resulting_scendiff.csv'),'w')
-        f_prices = open((res_path+'/Resulting_prices.csv'),'w')
-        f_service = open((res_path+'/Resulting_services.csv'),'w')
-        f_capacity= open((res_path+'/Resulting_capacities.csv'),'w')
-        f_traffic= open((res_path+'/Resulting_traffic.csv'),'w')
+    def write_evs(self,EvR,g,c,q,name,res_path):
+        #f_exsu = open((res_path+'/Resulting_exsu.csv'),'w')
+        #f_scdi = open((res_path+'/Resulting_scendiff.csv'),'w')
+        f_prices = open((res_path+'/Resulting_prices_'+name+'.csv'),'w')
+        f_service = open((res_path+'/Resulting_services_'+name+'.csv'),'w')
+        f_capacity= open((res_path+'/Resulting_capacities_'+name+'.csv'),'w')
+        f_traffic= open((res_path+'/Resulting_traffic_'+name+'.csv'),'w')
     
         for u in self.Scn.U:
             for k in self.K:
@@ -286,13 +286,13 @@ class Network:
                 aux_sd = 'Scenario%i,Node%i,'%(u,k)
                 aux_g = aux_p+('%f'%(g[k,u]))+','
                 aux_cap = aux_p+('%f'%(c[k,u]))+','
-                for nu in EvES:
-                    aux_p = aux_p+('%f'%(EvR[nu][u,k]))+','
-                    aux_s = aux_s+('%f'%(EvES[nu][u,k]))+','
-                    aux_sd = aux_sd+('%f'%(EvSD[nu][u,k]))+','
+                #for nu in EvES:
+                aux_p = aux_p+('%f'%(EvR[u,k]))+','
+                   # aux_s = aux_s+('%f'%(EvES[nu][u,k]))+','
+                   # aux_sd = aux_sd+('%f'%(EvSD[nu][u,k]))+','
                 f_prices.write(aux_p+',\n')
-                f_exsu.write(aux_s+',\n')
-                f_scdi.write(aux_sd+',\n')
+                #f_exsu.write(aux_s+',\n')
+                #f_scdi.write(aux_sd+',\n')
                 f_service.write(aux_g+',\n')
                 f_capacity.write(aux_cap+',\n')
         
@@ -305,8 +305,7 @@ class Network:
                         f_traffic.write(aux_q+',\n')
                         
                 
-        f_prices.close()
-        f_exsu.close()
+        #f_exsu.close()
         f_prices.close()
         f_service.close()
         f_capacity.close()
@@ -1373,22 +1372,45 @@ if __name__ == "__main__":
         # this are iteration for ADMM algorithm
         #Algo.q, Algo.x, Algo.v, Algo.c, Algo.g = Ntw.step_1(Algo)
         #Algo.znu, Algo.rho, Algo.lbda = Ntw.step_2(Algo)
-       
-        Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem()
-        #Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem_no_non_anti()
-        print(Algo.g)
-        print(Algo.c)
-        print(Algo.q)
-        ES = Ntw.exsu(Algo)
-        SD = Ntw.scen_diff(Algo)
-        maxee = max( abs(ES[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
-        maxsd = max( abs(SD[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
-        RR[iter] = Algo.rho
-        EE[iter] = ES
-        SS[iter] = SD
-        EM[iter] = maxee
-        SM[iter] = maxsd
-        print ('Iteration %i ES_{max} %f, SD_{max} %f'% (iter,maxee, maxsd))
+        aux_str=strftime("%Y%m%d_%H%M", localtime())
+        pname='Results_'+aux_str
+        os.system('mkdir '+pname)
+
+        problems= ['with_anti', 'with_no_anti']
+
+        for problem in problems:
+
+
+            if problem == 'with_anti':
+                Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem()
+                Ntw.write_evs(EvR=Algo.rho,
+                    g=Algo.g,
+                    c=Algo.c,
+                    q=Algo.q,
+                    name = problem,
+                    res_path=pname)
+
+            elif problem == 'with_no_anti':
+                Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem_no_non_anti()
+                Ntw.write_evs(EvR=Algo.rho,
+                    g=Algo.g,
+                    c=Algo.c,
+                    q=Algo.q,
+                    name = problem,
+                    res_path=pname)
+        #print(Algo.g)
+        #print(Algo.c)
+        #print(Algo.q)
+        #ES = Ntw.exsu(Algo)
+        #SD = Ntw.scen_diff(Algo)
+        #maxee = max( abs(ES[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
+        #maxsd = max( abs(SD[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
+        #RR[iter] = Algo.rho
+        #EE[iter] = ES
+        #SS[iter] = SD
+        #EM[iter] = maxee
+        #SM[iter] = maxsd
+        #print ('Iteration %i ES_{max} %f, SD_{max} %f'% (iter,maxee, maxsd))
         if iter > 5:
             if maxee <= ES_tol and maxsd <= SD_tol:
                 if EM[iter-1] <= 1*ES_tol and EM[iter-2] <= 2*ES_tol and EM[iter-3] <= 3*ES_tol and SM[iter-1] <= 1*SD_tol and SM[iter-2] <= 2*SD_tol and SM[iter-3] <= 3*SD_tol:
@@ -1401,14 +1423,4 @@ if __name__ == "__main__":
     end = time.time()
     el_time = end - start
     print ('Elapsed time %f' % el_time)
-    aux_str=strftime("%Y%m%d_%H%M", localtime())
-    pname='Results_'+aux_str
-    os.system('mkdir '+pname)
-    Ntw.write_evs(EvES=EE,
-                    EvSD=SS,
-                    EvR=RR,
-                    g=Algo.g,
-                    c=Algo.c,
-                    q=Algo.q,
-                    res_path=pname)
     os.system('cp -r '+pname+'/ Results') # this line creates a copy of results so that we don't need to change code in plotting. TODA, a more efficient way is to write code in python to visulize the results directly.
