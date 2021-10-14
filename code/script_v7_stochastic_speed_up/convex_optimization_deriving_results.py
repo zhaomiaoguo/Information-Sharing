@@ -127,7 +127,8 @@ class Network:
 
     def centralized_problem_no_non_anti(self):
         model = AbstractModel('Convex Reformulation')
-        model.c = Var(self.K, within=NonNegativeReals,initialize=1000.0)
+        model.c = Var(self.K, self.Scn.U, within=NonNegativeReals,initialize=1000.0)
+        model.z = Var(self.K, within=NonNegativeReals,initialize=1000.0)
         model.g = Var(self.K, self.Scn.U,  within=NonNegativeReals,initialize=500.0)
         model.q = Var(self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals, initialize=500.0)#=1e-1)
         model.v = Var(self.A, self.Scn.U, within=NonNegativeReals,initialize=0.0) # traffic flow
@@ -137,7 +138,7 @@ class Network:
         model.x2 = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)
 
         def obj_rule(model):
-            exp0 = sum(self.I.ca*model.c[k]**2+self.I.cb*model.c[k] for k in self.K)
+            exp0 = sum(self.Scn.pr[u]*sum(self.I.ca*model.c[k,u]**2+self.I.cb*model.c[k,u] for k in self.K) for u in self.Scn.U)
             exp1 = sum(self.Scn.pr[u]*sum(self.I.ga*model.g[k, u]**2+self.I.gb*model.g[k, u] for k in self.K) for u in self.Scn.U)
             exp20 = sum(self.Scn.pr[u]*sum(self.C.tff[r,s]*(model.v[r,s,u]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s,u]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.A) for u in self.Scn.U)
             exp21 = sum(self.Scn.pr[u]*sum( model.q[r,s,k,u]*( pyolog(model.q[r,s,k,u]) - 1.0 - self.C.b0[k]) for k in self.K for s in self.S for r in self.R) for u in self.Scn.U)
@@ -149,8 +150,12 @@ class Network:
         model.market_clear = Constraint(self.K, self.Scn.U, rule = market_clear_rule)
 
         def capacity_rule(model, k, u):
-            return (model.g[k,u]-model.c[k]) <= 0
+            return model.g[k,u]-model.c[k,u] <= 0
         model.capacity = Constraint(self.K, self.Scn.U, rule=capacity_rule)
+
+#         def non_anti_rule(model, k, u):
+#             return model.c[k,u] == model.z[k]
+#         model.non_anti = Constraint(self.K,self.Scn.U, rule=non_anti_rule)
 
         def conb_rule(model, i, j, u):
             return sum( model.x[i,j,r,s,k,u] for k in self.K for s in self.S for r in self.R) == model.v[i,j,u]
@@ -194,16 +199,18 @@ class Network:
         c = {}
         z = {}
         for k in self.K:
-            z[k] = value(inst.c[k])
+            z[k] = value(inst.z[k])
 
         for u in self.Scn.U:
             for k in self.K:
                 #rho_ans[u,k] = -inst.dual[inst.market_clear[k,u]]/self.Scn.pr[u] 
                 rho_ans[u,k] = -inst.dual[inst.market_clear[k,u]]
                 dual_cap[u,k] = -inst.dual[inst.capacity[k,u]]
+#                 dual_non_anti[u,k] = -inst.dual[inst.non_anti[k,u]]
 
                 print('Locational price at facility %i at scenario %i: %f' % (k,u, rho_ans[u,k]))
                 print('Dual capcity at facility %i at scenario %i: %f' % (k,u, dual_cap[u,k]))
+#                 print('Dual non_anticipativity at facility %i at scenario %i: %f' % (k,u, dual_non_anti[u,k]))
             for (i,j) in self.A:
                 v[i,j,u]=value(inst.v[i,j,u])
                 for r in self.R:
@@ -216,7 +223,7 @@ class Network:
                         q[r,s,k,u]=value(inst.q[r,s,k,u])
             for k in self.K:
                 g[k,u]=value(inst.g[k,u])
-                c[k,u]=value(inst.c[k])
+                c[k,u]=value(inst.c[k,u])
         return g, c, q, x, v, rho_ans, z
 
     def init_ADMM(self):
@@ -271,13 +278,14 @@ class Network:
         return SD
 
     # all the output can be saved in this function.
-    def write_evs(self,EvR,g,c,q,name,res_path):
+    def write_evs(self,EvR,g,c,q,x,name,res_path):
         #f_exsu = open((res_path+'/Resulting_exsu.csv'),'w')
         #f_scdi = open((res_path+'/Resulting_scendiff.csv'),'w')
         f_prices = open((res_path+'/Resulting_prices_'+name+'.csv'),'w')
         f_service = open((res_path+'/Resulting_services_'+name+'.csv'),'w')
         f_capacity= open((res_path+'/Resulting_capacities_'+name+'.csv'),'w')
         f_traffic= open((res_path+'/Resulting_traffic_'+name+'.csv'),'w')
+        f_link = open((res_path+'/Resulting_link_traffic_'+name+'.csv'),'w')
     
         for u in self.Scn.U:
             for k in self.K:
@@ -303,13 +311,17 @@ class Network:
                         aux_q = 'Scenario%i,Origin%i,Destination%i,Facility%i,'%(u,r,s,k)
                         aux_q = aux_q + ('%f'%(q[r,s,k,u])) + ','
                         f_traffic.write(aux_q+',\n')
-                        
-                
+                        for (i,j) in self.A:
+                            aux_x = 'Scenario%i,Node%i,Node%i,Origin%i,Destination%i,Facility%i,'%(u,i,j,r,s,k)
+                            aux_x = aux_x + ('%f'%(x[i,j,r,s,k,u])) + ','
+                            f_link.write(aux_x+',\n')
+       
         #f_exsu.close()
         f_prices.close()
         f_service.close()
         f_capacity.close()
         f_traffic.close()
+        f_link.close()
 
 class Investors(Network):
     def __init__(self, nodes, links, origin, destination, facility, costca, costcb, costga, costgb, scenarios): #Locations,
@@ -1387,6 +1399,7 @@ if __name__ == "__main__":
                     g=Algo.g,
                     c=Algo.c,
                     q=Algo.q,
+                    x=Algo.x,
                     name = problem,
                     res_path=pname)
 
@@ -1396,6 +1409,7 @@ if __name__ == "__main__":
                     g=Algo.g,
                     c=Algo.c,
                     q=Algo.q,
+                    x=Algo.x, 
                     name = problem,
                     res_path=pname)
         #print(Algo.g)
