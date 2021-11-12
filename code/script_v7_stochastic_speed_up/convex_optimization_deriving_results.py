@@ -97,6 +97,9 @@ class Network:
         g = {}
         c = {}
         z = {}
+        lamda1 = {}
+        lamda2 = {}
+        mu = {}
         for k in self.K:
             z[k] = value(inst.z[k])
 
@@ -118,12 +121,17 @@ class Network:
                             x[i,j,r,s,k,u]=value(inst.x[i,j,r,s,k,u])
             for r in self.R:
                 for s in self.S:
+                    mu[r,s,u] = inst.dual[inst.cond[r,s,u]]
                     for k in self.K:
                         q[r,s,k,u]=value(inst.q[r,s,k,u])
+                        for n in self.N:
+                            lamda1[r,s,k,n,u] = inst.dual[inst.conc2[r,s,k,n,u]]
+                            lamda2[r,s,k,n,u] = inst.dual[inst.conc3[r,s,k,n,u]]
+                            
             for k in self.K:
                 g[k,u]=value(inst.g[k,u])
                 c[k,u]=value(inst.c[k,u])
-        return g, c, q, x, v, rho_ans, z
+        return g, c, q, x, v, rho_ans, z, lamda1, lamda2, mu
 
     def centralized_problem_no_non_anti(self):
         model = AbstractModel('Convex Reformulation')
@@ -198,6 +206,9 @@ class Network:
         g = {}
         c = {}
         z = {}
+        lamda1={}
+        lamda2={}
+        mu={}
         for k in self.K:
             z[k] = value(inst.z[k])
 
@@ -219,12 +230,17 @@ class Network:
                             x[i,j,r,s,k,u]=value(inst.x[i,j,r,s,k,u])
             for r in self.R:
                 for s in self.S:
+                    mu[r,s,u] = inst.dual[inst.cond[r,s,u]]
                     for k in self.K:
                         q[r,s,k,u]=value(inst.q[r,s,k,u])
+                        for n in self.N:
+                            lamda1[r,s,k,n,u] = inst.dual[inst.conc2[r,s,k,n,u]]
+                            lamda2[r,s,k,n,u] = inst.dual[inst.conc3[r,s,k,n,u]]
+                            
             for k in self.K:
                 g[k,u]=value(inst.g[k,u])
                 c[k,u]=value(inst.c[k,u])
-        return g, c, q, x, v, rho_ans, z
+        return g, c, q, x, v, rho_ans, z, lamda1, lamda2, mu
 
     def init_ADMM(self):
         rho_0={}
@@ -278,7 +294,7 @@ class Network:
         return SD
 
     # all the output can be saved in this function.
-    def write_evs(self,EvR,g,c,q,x,name,res_path):
+    def write_evs(self,EvR,g,c,q,x,lamda1,lamda2,mu,name,res_path):
         #f_exsu = open((res_path+'/Resulting_exsu.csv'),'w')
         #f_scdi = open((res_path+'/Resulting_scendiff.csv'),'w')
         f_prices = open((res_path+'/Resulting_prices_'+name+'.csv'),'w')
@@ -286,6 +302,9 @@ class Network:
         f_capacity= open((res_path+'/Resulting_capacities_'+name+'.csv'),'w')
         f_traffic= open((res_path+'/Resulting_traffic_'+name+'.csv'),'w')
         f_link = open((res_path+'/Resulting_link_traffic_'+name+'.csv'),'w')
+        f_lamda1 = open((res_path+'/Resulting_lamda1_'+name+'.csv'),'w')
+        f_lamda2 = open((res_path+'/Resulting_lamda2_'+name+'.csv'),'w')
+        f_mu = open((res_path+'/Resulting_mu_'+name+'.csv'),'w')
     
         for u in self.Scn.U:
             for k in self.K:
@@ -306,11 +325,28 @@ class Network:
         
         for r in self.R:
             for s in self.S:
+                for u in self.Scn.U:
+                    aux_mu = 'Scenario%i,Origin%i,Destination%i,'%(u,r,s)
+                    aux_mu = aux_mu + ('%f'%(mu[r,s,u])) + ','
+                    f_mu.write(aux_mu+',\n')
+        
+        for r in self.R:
+            for s in self.S:
+                aux_mu = 'Scenario%i,Origin%i,Destination%i,'%(u,r,s)
+                aux_mu = aux_mu + ('%f'%(mu[r,s,u])) + ','
+                f_mu.write(aux_mu+',\n')
                 for k in self.K:
                     for u in self.Scn.U:
                         aux_q = 'Scenario%i,Origin%i,Destination%i,Facility%i,'%(u,r,s,k)
                         aux_q = aux_q + ('%f'%(q[r,s,k,u])) + ','
                         f_traffic.write(aux_q+',\n')
+                        for n in self.N:
+                            aux_lamda = 'Scenario%i,Origin%i,Destination%i,Facility%i,Node%i,'%(u,r,s,k,n)
+                            aux_lamda1 = aux_lamda + ('%f'%(lamda1[r,s,k,n,u])) + ','
+                            aux_lamda2 = aux_lamda + ('%f'%(lamda1[r,s,k,n,u])) + ','
+                            f_lamda1.write(aux_lamda1+',\n')
+                            f_lamda2.write(aux_lamda2+',\n')
+                            
                         for (i,j) in self.A:
                             aux_x = 'Scenario%i,Node%i,Node%i,Origin%i,Destination%i,Facility%i,'%(u,i,j,r,s,k)
                             aux_x = aux_x + ('%f'%(x[i,j,r,s,k,u])) + ','
@@ -322,6 +358,9 @@ class Network:
         f_capacity.close()
         f_traffic.close()
         f_link.close()
+        f_lamda1.close()
+        f_lamda2.close()
+        f_mu.close()
 
 class Investors(Network):
     def __init__(self, nodes, links, origin, destination, facility, costca, costcb, costga, costgb, scenarios): #Locations,
@@ -1184,8 +1223,10 @@ def Example_Anaheim(identical_scen, congestion):
         b0[k] = 0.0 # locational attractiveness
     #b1 = 1 # travel time
     b1 = 0.001
+#     b2 = 0.01
     b2 = 0.0 # capacity
-    b3 = 0.001 # price
+    b3 = 0.0001
+#     b3 = 0.001 # price
 
     # income parameters for orgin and destination
     inc = {}
@@ -1198,6 +1239,8 @@ def Example_Anaheim(identical_scen, congestion):
     for r in R:
         for s in S:
             d[r,s] = 100
+            
+#     d[25,41] = 300
 
     # EV adoption rate
     random.seed(1)
@@ -1356,10 +1399,11 @@ def Example_Anaheim(identical_scen, congestion):
     return Ntw
 
 if __name__ == "__main__":
-    congestion = False 
+    congestion = True 
     identical_scen = False 
-    Ntw = Example_Anaheim(identical_scen, congestion)
-
+#     Ntw = Example_Anaheim(identical_scen, congestion)
+    
+    Ntw = Example(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start = time.time()
@@ -1394,22 +1438,30 @@ if __name__ == "__main__":
 
 
             if problem == 'with_anti':
-                Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem()
+                Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu, Algo.lamda1, Algo.lamda2, Algo.mu = Ntw.centralized_problem()
                 Ntw.write_evs(EvR=Algo.rho,
                     g=Algo.g,
                     c=Algo.c,
                     q=Algo.q,
                     x=Algo.x,
+                    lamda1=Algo.lamda1,
+                    lamda2=Algo.lamda2,
+                    mu =  Algo.mu,
                     name = problem,
                     res_path=pname)
+                
+                print('Problem with non -anticipitivity constraint is solved')
 
             elif problem == 'with_no_anti':
-                Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu = Ntw.centralized_problem_no_non_anti()
+                Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu, Algo.lamda1, Algo.lamda2, Algo.mu = Ntw.centralized_problem_no_non_anti()
                 Ntw.write_evs(EvR=Algo.rho,
                     g=Algo.g,
                     c=Algo.c,
                     q=Algo.q,
-                    x=Algo.x, 
+                    x=Algo.x,
+                    lamda1=Algo.lamda1,
+                    lamda2=Algo.lamda2,
+                    mu = Algo.mu,
                     name = problem,
                     res_path=pname)
         #print(Algo.g)

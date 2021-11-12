@@ -876,10 +876,20 @@ def Example_Anaheim(identical_scen,congestion):
     for r in R:
         for s in S:
             d[r,s] = 100
-
+#     d[25,41] = 300
+#     d[28,34] = 300
     # EV adoption rate
     # growth = {1:0.908838096}
-    growth = {1:1}
+    random.seed(1)
+    gr = {}
+    for u in set(range(1,6)):
+        if identical_scen:
+            gr[u] = 1
+        else:
+            gr[u] = random.uniform(1,1.5)
+#         print('growth at scen ', u, ': ', growth[u])
+    growth={}    
+    growth[1] = sum(gr.values()) / len(set(range(1,6)))
 
     # Probablity
     pr = {}
@@ -1030,7 +1040,7 @@ def Example_Anaheim(identical_scen,congestion):
 
 if __name__ == "__main__":
         congestion = False 
-        identical_scen = True 
+        identical_scen = False 
         Ntw = Example_Anaheim(identical_scen,congestion)
         Algo = Ntw.init_ADMM()
         time_bq = {}
