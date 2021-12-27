@@ -1044,8 +1044,8 @@ if __name__ == "__main__":
     # this is the main function
     congestion = False 
     identical_scen = False 
-    #ntw = Example(identical_scen, congestion)
-    Ntw = Example_Anaheim(identical_scen, congestion)
+    ntw = Example(identical_scen, congestion)
+#     Ntw = Example_Anaheim(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start = time.time()

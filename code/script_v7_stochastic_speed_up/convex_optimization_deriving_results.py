@@ -344,7 +344,7 @@ class Network:
                         for n in self.N:
                             aux_lamda = 'Scenario%i,Origin%i,Destination%i,Facility%i,Node%i,'%(u,r,s,k,n)
                             aux_lamda1 = aux_lamda + ('%f'%(lamda1[r,s,k,n,u])) + ','
-                            aux_lamda2 = aux_lamda + ('%f'%(lamda1[r,s,k,n,u])) + ','
+                            aux_lamda2 = aux_lamda + ('%f'%(lamda2[r,s,k,n,u])) + ','
                             f_lamda1.write(aux_lamda1+',\n')
                             f_lamda2.write(aux_lamda2+',\n')
                             
@@ -852,7 +852,7 @@ def Example(identical_scen, congestion):
     S = [1,7,14,20,24]
     R = [2,11,13,19,21]
     K = [3,6,12,17,22]
-    U = set(range(1,6))
+    U = set(range(1,21))
     N = set(range(1,25))
     A = [(1,2),(1,3),
         (2,1),(2,6),
@@ -885,9 +885,9 @@ def Example(identical_scen, congestion):
     for k in K:
         b0[k] = 0.0 # locational attractiveness
     #b1 = 1 # travel time
-    b1 = 0.001 # travel time
+    b1 = 1 # travel time
     b2 = 0.0 # capacity
-    b3 = 0.001 # price
+    b3 = 0.06 # price
 
     # income parameters for orgin and destination
     inc = {}
@@ -1405,7 +1405,7 @@ def Example_6node(identical_scen, congestion):
     R = [1,4]
     S = [3,6]
     K = [2,5]
-    U = set(range(1,2))
+    U = set(range(1,10))
     N = set(range(1,7))
     A = [(1,2),(2,3),(1,4),(4,5),(5,6),(6,3)]
     I = [1]
@@ -1414,9 +1414,9 @@ def Example_6node(identical_scen, congestion):
     for k in K:
         b0[k] = 1 # locational attractiveness
     #b1 = 1 # travel time
-    b1 = 1 # travel time
+    b1 = 0.01# travel time
     b2 = 1 # capacity
-    b3 = 1 # price
+    b3 = 0.1 # price
     
     # income parameters for orgin and destination
     inc = {}
@@ -1603,9 +1603,9 @@ def Example_3node(identical_scen, congestion):
     for k in K:
         b0[k] = 0 # locational attractiveness
     #b1 = 1 # travel time
-    b1 = 1 # travel time
+    b1 = 0.001# travel time
     b2 = 1 # capacity
-    b3 = 1 # price
+    b3 = 0.1 # price
     
     # income parameters for orgin and destination
     inc = {}
@@ -1780,12 +1780,12 @@ def Example_3node(identical_scen, congestion):
     return Ntw
 
 if __name__ == "__main__":
-    congestion = False 
-    identical_scen = True 
+    congestion = True 
+    identical_scen = False 
 #     Ntw = Example_Anaheim(identical_scen, congestion)
     
-#     Ntw = Example(identical_scen, congestion)
-    Ntw = Example_3node(identical_scen, congestion)
+    Ntw = Example(identical_scen, congestion)
+#     Ntw = Example_6node(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start = time.time()

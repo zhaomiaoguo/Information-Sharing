@@ -508,343 +508,373 @@ class Scenarios:
         self.U = U
         self.pr = pr
 
-def Example():
-        S = [1,7,14,20,24]
-        R = [2,11,13,19,21]
-        K = [3,6,12,17,22]
-        U = set(range(1,2))
-        N = set(range(1,25))
-        A = [(1,2),(1,3),
-                (2,1),(2,6),
-                (3,1),(3,4),(3,12),
-                (4,3),(4,5),(4,11),
-                (5,4),(5,6),(5,9),
-                (6,2),(6,5),(6,8),
-                (7,8),(7,18),
-                (8,6),(8,7),(8,9),(8,16),
-                (9,5),(9,8),(9,10),
-                (10,9),(10,11),(10,15),(10,16),(10,17),
-                (11,4),(11,10),(11,12),(11,14),
-                (12,3),(12,11),(12,13),
-                (13,12),(13,24),
-                (14,11),(14,15),(14,23),
-                (15,10),(15,14),(15,19),(15,22),
-                (16,8),(16,10),(16,17),(16,18),
-                (17,10),(17,16),(17,19),
-                (18,7),(18,16),(18,20),
-                (19,15),(19,17),(19,20),
-                (20,18),(20,19),(20,21),(20,22),
-                (21,20),(21,22),(21,24),
-                (22,15),(22,20),(22,21),(22,23),
-                (23,14),(23,22),(23,24),
-                (24,13),(24,21),(24,23)]
-        I = [1]
+def Example(identical_scen, congestion):
+    S = [1,7,14,20,24]
+    R = [2,11,13,19,21]
+    K = [3,6,12,17,22]
+    U = set(range(1,2))
+    U2 = set(range(1,21))
+    N = set(range(1,25))
+    A = [(1,2),(1,3),
+        (2,1),(2,6),
+        (3,1),(3,4),(3,12),
+        (4,3),(4,5),(4,11),
+        (5,4),(5,6),(5,9),
+        (6,2),(6,5),(6,8),
+        (7,8),(7,18),
+        (8,6),(8,7),(8,9),(8,16),
+        (9,5),(9,8),(9,10),
+        (10,9),(10,11),(10,15),(10,16),(10,17),
+        (11,4),(11,10),(11,12),(11,14),
+        (12,3),(12,11),(12,13),
+        (13,12),(13,24),
+        (14,11),(14,15),(14,23),
+        (15,10),(15,14),(15,19),(15,22),
+        (16,8),(16,10),(16,17),(16,18),
+        (17,10),(17,16),(17,19),
+        (18,7),(18,16),(18,20),
+        (19,15),(19,17),(19,20),
+        (20,18),(20,19),(20,21),(20,22),
+        (21,20),(21,22),(21,24),
+        (22,15),(22,20),(22,21),(22,23),
+        (23,14),(23,22),(23,24),
+        (24,13),(24,21),(24,23)]
+    I = [1]
 
-        # utility parameters for charging facility choice
-        b0 = {}
-        for k in K:
-            b0[k] = 0.0 # locational attractiveness
-        b1 = 1 # travel time
-        b2 = 0.0 # capacity
-        b3 = 0.06 # price
+    # utility parameters for charging facility choice
+    b0 = {}
+    for k in K:
+        b0[k] = 0.0 # locational attractiveness
+    #b1 = 1 # travel time
+    b1 = 1 # travel time
+    b2 = 0.0 # capacity
+    b3 = 0.06 # price
 
-        # income parameters for orgin and destination
-        inc = {}
-        for r in R:
-            for s in S:
-                inc[r,s]=1.0
+    # income parameters for orgin and destination
+    inc = {}
+    for r in R:
+        for s in S:
+            inc[r,s]=1.0
 
-        # travel demand between od
-        d = {}
-        for r in R:
-            for s in S:
-                d[r,s] = 100
+    # travel demand between od
+    d = {}
+    for r in R:
+        for s in S:
+            d[r,s] = 100
 
-        # EV adoption rate
-        growth = {1:0.908838096}
+    # EV adoption rate
+    random.seed(1)
+    gr = {}
+    for u in U2:
+        if identical_scen:
+            gr[u] = 1 
+        else:
+            gr[u] = random.uniform(1,1.2)
+        print('growth at scen ', u, ': ', gr[u])
+    
+    # Probablity
+    prob = {}
+    for u in U2:
+        prob[u] = random.uniform(0,1) 
+    prob_sum = sum(prob[u] for u in U2)
+    for u in U2:
+        if identical_scen:
+            prob[u] = 1/len(U)
+        else:
+            prob[u] = prob[u]/prob_sum
+        print("Probability at", u , '  ',prob[u])
+    growth={}
+    growth[1] = sum(prob[u] * gr[u] for u in U2)
+    print("Expected growth", growth[1])
+    pr={1:1}
+    Scen = {}
+    Scen = Scenarios(growth, U, pr)
+    # travel cost function: use BPR function
 
-        # Probablity
-        pr = {1:1}
-        Scen = {}
-        Scen = Scenarios(growth, U, pr)
-        # travel cost function: use BPR function
+    alpha = {}
+    cap = {}
+    tff = {}
+    b = {}
+    for (r,s) in A:
+        alpha[r,s] = 4.0
+        if congestion:
+            b[r,s] = 0.15
+        else:
+            b[r,s] = 0
 
-        alpha = {}
-        cap = {}
-        tff = {}
-        b = {}
+    cap[1,2]=776.682805381695
+    cap[1,3]=701.812139046214
+    cap[2,1]=776.682805381695
+    cap[2,6]=148.683553701964
+    cap[3,1]=701.812139046214
+    cap[3,4]=513.102185929618
+    cap[3,12]=701.812139046214
+    cap[4,3]=513.102185929618
+    cap[4,5]=533.261907932196
+    cap[4,11]=147.203543662937
+    cap[5,4]=533.261907932196
+    cap[5,6]=148.378117038357
+    cap[5,9]=299.875207986689
+    cap[6,2]=148.683553701964
+    cap[6,5]=148.378117038357
+    cap[6,8]=146.896498918528
+    cap[7,8]=235.156479757862
+    cap[7,18]=701.812139046214
+    cap[8,6]=146.896498918528
+    cap[8,7]=235.156479757862
+    cap[8,9]=151.442772302845
+    cap[8,16]=151.311709654105
+    cap[9,5]=299.875207986689
+    cap[9,8]=151.442772302845
+    cap[9,10]=417.299994674626
+    cap[10,9]=417.299994674626
+    cap[10,11]=299.875207986689
+    cap[10,15]=405.191427512271
+    cap[10,16]=145.586946014363
+    cap[10,17]=149.743005794701
+    cap[11,4]=147.203543662937
+    cap[11,10]=299.875207986689
+    cap[11,12]=147.203543662937
+    cap[11,14]=146.234393681294
+    cap[12,3]=701.812139046214
+    cap[12,11]=147.203543662937
+    cap[12,13]=776.682805381695
+    cap[13,12]=776.682805381695
+    cap[13,24]=152.674149749451
+    cap[14,11]=146.234393681294
+    cap[14,15]=153.761796139231
+    cap[14,23]=147.682260696526
+    cap[15,10]=405.191427512271
+    cap[15,14]=153.761796139231
+    cap[15,19]=436.760838013103
+    cap[15,22]=287.855626843116
+    cap[16,8]=151.311709654105
+    cap[16,10]=145.586946014363
+    cap[16,17]=156.83203678938
+    cap[16,18]=590.15131190678
+    cap[17,10]=149.743005794701
+    cap[17,16]=156.83203678938
+    cap[17,19]=144.658325876369
+    cap[18,7]=701.812139046214
+    cap[18,16]=590.15131190678
+    cap[18,20]=701.812139046214
+    cap[19,15]=436.760838013103
+    cap[19,17]=144.658325876369
+    cap[19,20]=150.015798343041
+    cap[20,18]=701.812139046214
+    cap[20,19]=150.015798343041
+    cap[20,21]=151.734226535192
+    cap[20,22]=152.207575142833
+    cap[21,20]=151.734226535192
+    cap[21,22]=156.83203678938
+    cap[21,24]=146.499761559384
+    cap[22,15]=287.855626843116
+    cap[22,20]=152.207575142833
+    cap[22,21]=156.83203678938
+    cap[22,23]=149.937603993344
+    cap[23,14]=147.682260696526
+    cap[23,22]=149.937603993344
+    cap[23,24]=152.291877350765
+    cap[24,13]=152.674149749451
+    cap[24,21]=146.499761559384
+    cap[24,23]=152.291877350765
+    
+    for (i,j) in A:
+        cap[i,j] = cap[i,j]*1
+
+    tff[1,2]=12
+    tff[1,3]=8
+    tff[2,1]=12
+    tff[2,6]=10
+    tff[3,1]=8
+    tff[3,4]=8
+    tff[3,12]=8
+    tff[4,3]=8
+    tff[4,5]=4
+    tff[4,11]=12
+    tff[5,4]=4
+    tff[5,6]=8
+    tff[5,9]=10
+    tff[6,2]=10
+    tff[6,5]=8
+    tff[6,8]=4
+    tff[7,8]=6
+    tff[7,18]=4
+    tff[8,6]=4
+    tff[8,7]=6
+    tff[8,9]=20
+    tff[8,16]=10
+    tff[9,5]=10
+    tff[9,8]=20
+    tff[9,10]=6
+    tff[10,9]=6
+    tff[10,11]=10
+    tff[10,15]=12
+    tff[10,16]=8
+    tff[10,17]=16
+    tff[11,4]=12
+    tff[11,10]=10
+    tff[11,12]=12
+    tff[11,14]=8
+    tff[12,3]=8
+    tff[12,11]=12
+    tff[12,13]=6
+    tff[13,12]=6
+    tff[13,24]=8
+    tff[14,11]=8
+    tff[14,15]=10
+    tff[14,23]=8
+    tff[15,10]=12
+    tff[15,14]=10
+    tff[15,19]=6
+    tff[15,22]=6
+    tff[16,8]=10
+    tff[16,10]=8
+    tff[16,17]=4
+    tff[16,18]=6
+    tff[17,10]=16
+    tff[17,16]=4
+    tff[17,19]=4
+    tff[18,7]=4
+    tff[18,16]=6
+    tff[18,20]=8
+    tff[19,15]=6
+    tff[19,17]=4
+    tff[19,20]=8
+    tff[20,18]=8
+    tff[20,19]=8
+    tff[20,21]=12
+    tff[20,22]=10
+    tff[21,20]=12
+    tff[21,22]=4
+    tff[21,24]=6
+    tff[22,15]=6
+    tff[22,20]=10
+    tff[22,21]=4
+    tff[22,23]=8
+    tff[23,14]=8
+    tff[23,22]=8
+    tff[23,24]=4
+    tff[24,13]=8
+    tff[24,21]=6
+    tff[24,23]=4
+    for (i,j) in A:
+        tff[i,j] = tff[i,j] *1
+    # incidence matrix nodes to link
+    mA = {}
+    for n in N:
         for (r,s) in A:
-                alpha[r,s] = 4.0
-                b[r,s] = 0.15
+            if n == r:
+                mA[n,r,s]=1.0
+            elif n == s:
+                mA[n,r,s]=-1.0
+            else:
+                mA[n,r,s]=0.0
 
-        cap[1,2]=776.682805381695
-        cap[1,3]=701.812139046214
-        cap[2,1]=776.682805381695
-        cap[2,6]=148.683553701964
-        cap[3,1]=701.812139046214
-        cap[3,4]=513.102185929618
-        cap[3,12]=701.812139046214
-        cap[4,3]=513.102185929618
-        cap[4,5]=533.261907932196
-        cap[4,11]=147.203543662937
-        cap[5,4]=533.261907932196
-        cap[5,6]=148.378117038357
-        cap[5,9]=299.875207986689
-        cap[6,2]=148.683553701964
-        cap[6,5]=148.378117038357
-        cap[6,8]=146.896498918528
-        cap[7,8]=235.156479757862
-        cap[7,18]=701.812139046214
-        cap[8,6]=146.896498918528
-        cap[8,7]=235.156479757862
-        cap[8,9]=151.442772302845
-        cap[8,16]=151.311709654105
-        cap[9,5]=299.875207986689
-        cap[9,8]=151.442772302845
-        cap[9,10]=417.299994674626
-        cap[10,9]=417.299994674626
-        cap[10,11]=299.875207986689
-        cap[10,15]=405.191427512271
-        cap[10,16]=145.586946014363
-        cap[10,17]=149.743005794701
-        cap[11,4]=147.203543662937
-        cap[11,10]=299.875207986689
-        cap[11,12]=147.203543662937
-        cap[11,14]=146.234393681294
-        cap[12,3]=701.812139046214
-        cap[12,11]=147.203543662937
-        cap[12,13]=776.682805381695
-        cap[13,12]=776.682805381695
-        cap[13,24]=152.674149749451
-        cap[14,11]=146.234393681294
-        cap[14,15]=153.761796139231
-        cap[14,23]=147.682260696526
-        cap[15,10]=405.191427512271
-        cap[15,14]=153.761796139231
-        cap[15,19]=436.760838013103
-        cap[15,22]=287.855626843116
-        cap[16,8]=151.311709654105
-        cap[16,10]=145.586946014363
-        cap[16,17]=156.83203678938
-        cap[16,18]=590.15131190678
-        cap[17,10]=149.743005794701
-        cap[17,16]=156.83203678938
-        cap[17,19]=144.658325876369
-        cap[18,7]=701.812139046214
-        cap[18,16]=590.15131190678
-        cap[18,20]=701.812139046214
-        cap[19,15]=436.760838013103
-        cap[19,17]=144.658325876369
-        cap[19,20]=150.015798343041
-        cap[20,18]=701.812139046214
-        cap[20,19]=150.015798343041
-        cap[20,21]=151.734226535192
-        cap[20,22]=152.207575142833
-        cap[21,20]=151.734226535192
-        cap[21,22]=156.83203678938
-        cap[21,24]=146.499761559384
-        cap[22,15]=287.855626843116
-        cap[22,20]=152.207575142833
-        cap[22,21]=156.83203678938
-        cap[22,23]=149.937603993344
-        cap[23,14]=147.682260696526
-        cap[23,22]=149.937603993344
-        cap[23,24]=152.291877350765
-        cap[24,13]=152.674149749451
-        cap[24,21]=146.499761559384
-        cap[24,23]=152.291877350765
+    # incidence matrix nodes
+    mA_k={}
+    for n in N:
+        for (r,s) in A:
+            if n == r:
+                mA_k[n,r,s] = 1.0
+            else:
+                mA_k[n,r,s] = 0.0
 
-        tff[1,2]=12
-        tff[1,3]=8
-        tff[2,1]=12
-        tff[2,6]=10
-        tff[3,1]=8
-        tff[3,4]=8
-        tff[3,12]=8
-        tff[4,3]=8
-        tff[4,5]=4
-        tff[4,11]=12
-        tff[5,4]=4
-        tff[5,6]=8
-        tff[5,9]=10
-        tff[6,2]=10
-        tff[6,5]=8
-        tff[6,8]=4
-        tff[7,8]=6
-        tff[7,18]=4
-        tff[8,6]=4
-        tff[8,7]=6
-        tff[8,9]=20
-        tff[8,16]=10
-        tff[9,5]=10
-        tff[9,8]=20
-        tff[9,10]=6
-        tff[10,9]=6
-        tff[10,11]=10
-        tff[10,15]=12
-        tff[10,16]=8
-        tff[10,17]=16
-        tff[11,4]=12
-        tff[11,10]=10
-        tff[11,12]=12
-        tff[11,14]=8
-        tff[12,3]=8
-        tff[12,11]=12
-        tff[12,13]=6
-        tff[13,12]=6
-        tff[13,24]=8
-        tff[14,11]=8
-        tff[14,15]=10
-        tff[14,23]=8
-        tff[15,10]=12
-        tff[15,14]=10
-        tff[15,19]=6
-        tff[15,22]=6
-        tff[16,8]=10
-        tff[16,10]=8
-        tff[16,17]=4
-        tff[16,18]=6
-        tff[17,10]=16
-        tff[17,16]=4
-        tff[17,19]=4
-        tff[18,7]=4
-        tff[18,16]=6
-        tff[18,20]=8
-        tff[19,15]=6
-        tff[19,17]=4
-        tff[19,20]=8
-        tff[20,18]=8
-        tff[20,19]=8
-        tff[20,21]=12
-        tff[20,22]=10
-        tff[21,20]=12
-        tff[21,22]=4
-        tff[21,24]=6
-        tff[22,15]=6
-        tff[22,20]=10
-        tff[22,21]=4
-        tff[22,23]=8
-        tff[23,14]=8
-        tff[23,22]=8
-        tff[23,24]=4
-        tff[24,13]=8
-        tff[24,21]=6
-        tff[24,23]=4
-
-        # incidence matrix nodes to link
-        mA = {}
-        for n in N:
-                for (r,s) in A:
-                        if n == r:
-                                mA[n,r,s]=1.0
-                        elif n == s:
-                                mA[n,r,s]=-1.0
-                        else:
-                                mA[n,r,s]=0.0
-
-        # incidence matrix nodes
-        mA_k={}
-        for n in N:
-            for (r,s) in A:
-                if n == r:
-                    mA_k[n,r,s] = 1.0
-                else:
-                    mA_k[n,r,s] = 0.0
-
-        # incidance matrix between nodes and origin/destination
-        mE = {}
-        for n in N:
-            for r in R:
-                for s in S:
-                    mE[n,r,s]=0.0
-                    if n == r:
-                        mE[n,r,s]=1.0
-                    if n == s:
-                        mE[n,r,s]=-1.0
-                    if r == s:
-                        mE[n,r,s]=0.0
-        # incidence matrix
-            for r in R:
-                for k in K:
-                    mE[n,r,k]=0.0
-                    if n == r:
-                        mE[n,r,k]=1.0
-                    if n == k:
-                        mE[n,r,k]=-1.0
-                    if r == k:
-                        mE[n,r,k]=0.0
-            for k in K:
-                for s in S:
-                    mE[n,k,s]=0.0
-                    if n == k:
-                        mE[n,k,s]=1.0
-                    if n == s:
-                        mE[n,k,s]=-1.0
-                    if s == k:
-                        mE[n,k,s]=0.0
-
-        # incidence matrix indicate nodes and charging
-        mE_k={}
-        for n in N:
-            for r in R:
-                for s in S:
-                    for k in K:
-                        mE_k[n,r,s,k]=0.0
-                        if n == k:
-                            mE_k[n,r,s,k]=1.0
-
-        # average energy demand between orgin and destination
-        e = {}
+    # incidance matrix between nodes and origin/destination
+    mE = {}
+    for n in N:
         for r in R:
             for s in S:
-                e[r,s]=1.0
+                mE[n,r,s]=0.0
+                if n == r:
+                    mE[n,r,s]=1.0
+                if n == s:
+                    mE[n,r,s]=-1.0
+                if r == s:
+                    mE[n,r,s]=0.0
+    # incidence matrix
+        for r in R:
+            for k in K:
+                mE[n,r,k]=0.0
+                if n == r:
+                    mE[n,r,k]=1.0
+                if n == k:
+                    mE[n,r,k]=-1.0
+                if r == k:
+                    mE[n,r,k]=0.0
+        for k in K:
+            for s in S:
+                mE[n,k,s]=0.0
+                if n == k:
+                    mE[n,k,s]=1.0
+                if n == s:
+                    mE[n,k,s]=-1.0
+                if s == k:
+                    mE[n,k,s]=0.0
 
-        Ntw = Network(nodes=N,
-                                  links=A,
-                                  origin=R,
-                                  destination=S,
-                                  facility=K,
-                                  scenarios= Scen)
+    # incidence matrix indicate nodes and charging
+    mE_k={}
+    for n in N:
+        for r in R:
+            for s in S:
+                for k in K:
+                    mE_k[n,r,s,k]=0.0
+                    if n == k:
+                        mE_k[n,r,s,k]=1.0
+
+    # average energy demand between orgin and destination
+    e = {}
+    for r in R:
+        for s in S:
+            e[r,s]=1.0
+            # need to double check the objective function has e[]
+
+    Ntw = Network(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios= Scen)
 #(N, A, R, S, K, I, b0, b1, b2, b3, inc, tff, b, alpha, cap, d, mA, mA_k, mE, mE_k, e)
-        costca = 0.100
-        costcb = 170
-        costga = 0.100
-        costgb = 130
+    costca = 0.100
+    costcb = 170
+    costga = 0.100
+    costgb = 130
 
-        Ntw.I = Investors(nodes=N,
-                                  links=A,
-                                  origin=R,
-                                  destination=S,
-                                  facility=K,
-                                  scenarios= Scen,
-                                  costca=costca,
-                                  costcb=costcb,
-                                  costga=costga,
-                                  costgb=costgb)
+    Ntw.I = Investors(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios= Scen,
+                  costca=costca,
+                  costcb=costcb,
+                  costga=costga,
+                  costgb=costgb)
 
-        Ntw.C = Consumers(nodes=N,
-                                  links=A,
-                                  origin=R,
-                                  destination=S,
-                                  facility=K,
-                                  scenarios=Scen,
-                                  b0=b0,
-                                  b1=b1,
-                                  b2=b2,
-                                  b3=b3,
-                                  inc=inc,
-                                  tff=tff,
-                                  b=b,
-                                  alpha=alpha,
-                                  cap=cap,
-                                  d=d,
-                                  mA=mA,
-                                  mA_k=mA_k,
-                                  mE=mE,
-                                  mE_k=mE_k,
-                                  e=e)
+    Ntw.C = Consumers(nodes=N,
+                  links=A,
+                  origin=R,
+                  destination=S,
+                  facility=K,
+                  scenarios=Scen,
+                  b0=b0,
+                  b1=b1,
+                  b2=b2,
+                  b3=b3,
+                  inc=inc,
+                  tff=tff,
+                  b=b,
+                  alpha=alpha,
+                  cap=cap,
+                  d=d,
+                  mA=mA,
+                  mA_k=mA_k,
+                  mE=mE,
+                  mE_k=mE_k,
+                  e=e)
 
-        return Ntw
+    return Ntw
 
 def Example_Anaheim(identical_scen,congestion):
     S = [2,34,21,29,41]
@@ -1039,9 +1069,10 @@ def Example_Anaheim(identical_scen,congestion):
 
 
 if __name__ == "__main__":
-        congestion = False 
+        congestion = True 
         identical_scen = False 
-        Ntw = Example_Anaheim(identical_scen,congestion)
+#         Ntw = Example_Anaheim(identical_scen,congestion)
+        Ntw = Example(identical_scen, congestion)
         Algo = Ntw.init_ADMM()
         time_bq = {}
         start = time.time()
