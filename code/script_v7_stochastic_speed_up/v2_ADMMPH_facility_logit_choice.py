@@ -65,10 +65,10 @@ class Network:
             self.I.model[u].del_component('obj')
 
             def obj_rule_utmax(model):
-                exp0 = - sum(ADMM.rho[u,k]*model.g[k] - (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) - (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
-                exp1 = ADMM.r_1/2.0 * sum( ( sum(ADMM.q[u,r,s,k] for r in self.R for s in self.S) - model.g[k])** 2 for k in self.K )
-                exp2 = sum( ADMM.lbda[u,k]*(model.c[k] - ADMM.znu[k]) for k in self.K )
-                exp3 = ADMM.r_2/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
+                exp0 =  sum(ADMM.rho[u,k]*model.g[k] + (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) + (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
+                exp1 = ADMM.r_2/2.0 * sum( (-(ADMM.g[u,k] + sum(self.C.e[r,s]*ADMM.q[u,r,s,k] for r in self.R for s in self.S))/2 + model.g[k])** 2 for k in self.K)
+                exp2 = sum(ADMM.lbda[u,k]*(model.c[k]) for k in self.K )
+                exp3 = ADMM.r_1/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
                 return exp0 + exp1 + exp2 + exp3
 
             self.I.model[u].add_component('obj', Objective(rule=obj_rule_utmax, sense=minimize))
@@ -90,9 +90,11 @@ class Network:
             self.C.model[u].del_component('obj')
             def obj_rule_tap(model):
                 exp0 = sum(self.C.tff[r,s]*(model.v[r,s]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.C.A)
-                exp1 = 1.0/self.C.b1*( sum( model.q[r,s,k]*( pyolog(model.q[r,s,k]) - 1.0 + self.C.b3*ADMM.rho[u,k] -self.C.b0[k] - self.C.b2*ADMM.c[u,k] ) for k in self.K for s in self.S for r in self.R))
-                exp2 =  sum((sum(self.C.e[r,s]*model.q[r, s, k] for r in self.R for s in self.S ) - ADMM.g[u, k])** 2 for k in self.K )
-                return self.C.b1/self.C.b3*(exp0 + exp1) + ADMM.r_1/2.0 * exp2
+                exp1 = 1.0/self.C.b1*( sum( model.q[r,s,k]*( model.q[r,s,k] - 1.0 -self.C.b0[k]) for k in self.K for s in self.S for r in self.R))
+#                 exp2 = -sum(ADMM.rho[u,k] * sum(self.C.e[r,s]*model.q[r,s,k] for r in self.R for s in self.S) for k self.K)
+                exp3 =  sum(((-sum(self.C.e[r,s]*(2*model.q[r, s, k] - ADMM.q[u,r,s,k]) for r in self.R for s in self.S ) + ADMM.g[u, k])/2)** 2 for k in self.K )
+                exp2 = sum(ADMM.rho[u,k] * sum(self.C.e[r,s]*model.q[r,s,k] for r in self.R for s in self.S) for k in self.K)
+                return self.C.b1/self.C.b3*(exp0 + exp1) - exp2 + ADMM.r_2/2.0 * exp3
             self.C.model[u].add_component('obj', Objective(rule=obj_rule_tap, sense=minimize))
 
             
@@ -125,8 +127,8 @@ class Network:
             z_new[k] = sum(ADMM.c[u, k] * self.Scn.pr[u] for u in self.Scn.U) # modified  on Jul. 14
         for u in self.Scn.U:
             for k in self.K:
-                rho_new[u,k] = ADMM.rho[u,k] + ADMM.r_1 *(sum(sum(ADMM.q[u,r,s,k] for r in self.R) for s in self.S) - ADMM.g[u,k])
-                la_new[u,k] = ADMM.lbda[u,k] + ADMM.r_2 * (ADMM.c[u,k]-z_new[k] )
+                rho_new[u,k] = ADMM.rho[u,k] + ADMM.r_2 *(sum(sum(self.C.e[r,s]*ADMM.q[u,r,s,k] for r in self.R) for s in self.S) - ADMM.g[u,k])
+                la_new[u,k] = ADMM.lbda[u,k] + ADMM.r_1 * (ADMM.c[u,k]-z_new[k] )
         return z_new, rho_new, la_new
 
     def init_ADMM(self):
@@ -226,7 +228,7 @@ class Investors(Network):
             exp0 = sum(self.ca*model.c[k]**2+self.cb*model.c[k] for k in self.K)
             exp1 = sum(self.ga*model.g[k]**2+self.gb*model.g[k] for k in self.K)
             exp20 = sum( self.tff[r,s]*(model.v[r,s]+(self.b[r,s]/(self.alpha[r,s]+1.0))*(model.v[r,s]**(self.alpha[r,s]+1))/(self.cap[r,s]**(self.alpha[r,s]))) for (r,s) in Ntw.A)
-            exp21 = (sum( sum( sum( model.q[r,s,k]*( pyolog(model.q[r,s,k]) - 1.0 - self.b0[k] - self.b2*c_old[k]) for k in self.K) for s in self.S) for r in self.R))
+            exp21 = (sum( sum( sum( model.q[r,s,k]*( (model.q[r,s,k]) - 1.0 - self.b0[k] - self.b2*c_old[k]) for k in self.K) for s in self.S) for r in self.R))
             return exp0 + exp1 + self.b1/self.b3 * ( exp20+ 1.0/self.b1*exp21)
         model.obj = Objective(rule=obj_rule, sense=minimize)
 
@@ -355,7 +357,7 @@ class Consumers(Network):
 
         def objrule(model):
             exp0 = sum(self.tff[r,s]*(model.v[r,s]+(self.b[r,s]/(self.alpha[r,s]+1.0))*(model.v[r,s]**(self.alpha[r,s]+1))/(self.cap[r,s]**(self.alpha[r,s]))) for (r,s) in self.A)
-            exp1 = 1.0/self.b1*( sum( model.q[r,s,k]*( pyolog(model.q[r,s,k]) - 1.0 + self.b3*ADMM.rho[u,k] -self.b0[k] - self.b2*ADMM.c[u,k] ) for k in self.K for s in self.S for r in self.R))
+            exp1 = 1.0/self.b1*( sum( model.q[r,s,k]*( (model.q[r,s,k]) - 1.0 + self.b3*ADMM.rho[u,k] -self.b0[k] - self.b2*ADMM.c[u,k] ) for k in self.K for s in self.S for r in self.R))
             exp2 =  sum((sum(self.e[r,s]*model.q[r, s, k] for r in self.R for s in self.S ) - ADMM.g[u, k])** 2 for k in self.K )
             return self.b1/self.b3*(exp0 + exp1) + ADMM.r_1/2.0 * exp2
         model.obj = Objective(rule=objrule)
@@ -574,7 +576,7 @@ def Example(identical_scen, congestion):
     tff = {}
     b = {}
     for (r,s) in A:
-        alpha[r,s] = 4.0
+        alpha[r,s] = 1.0
         if congestion:
             b[r,s] = 0.15
         else:
@@ -1040,6 +1042,7 @@ def Example_Anaheim(identical_scen, congestion):
 
     return Ntw
 
+
 def Example_6node(identical_scen, congestion):
     R = [1,4]
     S = [3,6]
@@ -1420,11 +1423,10 @@ def Example_3node(identical_scen, congestion):
 
 if __name__ == "__main__":
     # this is the main function
-    congestion = False 
+    congestion = True 
     identical_scen = False 
 #     Ntw = Example(identical_scen, congestion)
     Ntw = Example_6node(identical_scen, congestion)
-#     Ntw = Example_Anaheim(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start = time.time()
@@ -1487,5 +1489,7 @@ if __name__ == "__main__":
     Ntw.write_evs(EvES=EE,
                     EvSD=SS,
                     EvR=RR,
+                    c=Algo.c,
+                    g=Algo.g,
                     res_path=pname)
     os.system('cp -r '+pname+'/ Results') # this line creates a copy of results so that we don't need to change code in plotting. TODA, a more efficient way is to write code in python to visulize the results directly.
