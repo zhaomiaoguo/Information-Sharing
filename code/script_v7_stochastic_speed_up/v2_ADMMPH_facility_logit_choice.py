@@ -9,7 +9,7 @@ from time import perf_counter, strftime,localtime
 from pyomo.environ import log as pyolog
 import random
 import math
-from Transportaion_test_systems import import_matrix, transportation_network_topo
+# from Transportaion_test_systems import import_matrix, transportation_network_topo
 quadsol = 'cplex'
 nlsol = 'ipopt'
 
@@ -64,12 +64,13 @@ class Network:
         for u in self.Scn.U:
             self.I.model[u].del_component('obj')
 
-            def obj_rule_utmax(model):
-                exp0 =  sum(ADMM.rho[u,k]*model.g[k] + (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) + (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
-                exp1 = ADMM.r_2/2.0 * sum( (-(ADMM.g[u,k] + sum(self.C.e[r,s]*ADMM.q[u,r,s,k] for r in self.R for s in self.S))/2 + model.g[k])** 2 for k in self.K)
-                exp2 = sum(ADMM.lbda[u,k]*(model.c[k]) for k in self.K )
-                exp3 = ADMM.r_1/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
-                return exp0 + exp1 + exp2 + exp3
+            def obj_rule_tap(model):
+                exp0 = sum(self.C.tff[r,s]*(model.v[r,s]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.C.A)
+                exp1 = 1.0/self.C.b1*( sum( model.q[r,s,k]*( model.q[r,s,k] - 1.0 -self.C.b0[k]) for k in self.K for s in self.S for r in self.R))
+#                 exp2 = -sum(ADMM.rho[u,k] * sum(self.C.e[r,s]*model.q[r,s,k] for r in self.R for s in self.S) for k self.K)
+                exp3 =  sum(((-sum(self.C.e[r,s]*(2*model.q[r, s, k] - ADMM.q[u,r,s,k]) for r in self.R for s in self.S ) + ADMM.g[u, k])/2)** 2 for k in self.K )
+                exp2 = sum(ADMM.rho[u,k] * sum(self.C.e[r,s]*model.q[r,s,k] for r in self.R for s in self.S) for k in self.K)
+                return self.C.b1/self.C.b3*(exp0 + exp1) - exp2 + ADMM.r_2/2.0 * exp3
 
             self.I.model[u].add_component('obj', Objective(rule=obj_rule_utmax, sense=minimize))
             c_u, g_u = self.I.profit_maximization(ADMM,u)
@@ -183,25 +184,35 @@ class Network:
         return SD
 
     # all the output can be saved in this function.
-    def write_evs(self,EvES,EvSD,EvR,res_path):
+    def write_evs(self,EvES,EvSD,EvR,c,g,res_path):
         f_exsu = open((res_path+'/Resulting_exsu.csv'),'w')
         f_scdi = open((res_path+'/Resulting_scendiff.csv'),'w')
         f_prices = open((res_path+'/Resulting_prices.csv'),'w')
+        f_capacity = open((res_path+'/Resulting_capacity.csv'),'w')
+        f_services = open((res_path+'/Resulting_services.csv'),'w')
         for u in self.Scn.U:
             for k in self.K:
                 aux_p = 'Scenario%i,Node%i,'%(u,k)
                 aux_s = 'Scenario%i,Node%i,'%(u,k)
                 aux_sd = 'Scenario%i,Node%i,'%(u,k)
+                aux_g = 'Scenario%i,Node%i,'%(u,k) 
+                aux_c = 'Scenario%i,Node%i,'%(u,k)
                 for nu in EvES:
                     aux_p = aux_p+('%f'%(EvR[nu][u,k]))+','
                     aux_s = aux_s+('%f'%(EvES[nu][u,k]))+','
                     aux_sd = aux_sd+('%f'%(EvSD[nu][u,k]))+','
+                    aux_g += ('%f'%(g[nu][u,k]))+','
+                    aux_c += ('%f'%(c[nu][u,k]))+','
                 f_prices.write(aux_p+',\n')
                 f_exsu.write(aux_s+',\n')
                 f_scdi.write(aux_sd+',\n')
+                f_capacity.write(aux_c + ',\n')
+                f_services.write(aux_g + ',\n')
         f_prices.close()
         f_exsu.close()
         f_prices.close()
+        f_capacity.close()
+        f_services.close()
 
 class Investors(Network):
     def __init__(self, nodes, links, origin, destination, facility, costca, costcb, costga, costgb, scenarios): #Locations,
@@ -1439,6 +1450,8 @@ if __name__ == "__main__":
     SS = {} # scenario difference
     RR = {} # prices
     RR[0] = Algo.rho
+    CC={}
+    GG={}
     EM = {} # max excess supply for all the locations
     SM = {} # max scenario difference for all the locations
     ipoptObjs = {} # ipopt solver objects for each scenarios
@@ -1464,6 +1477,8 @@ if __name__ == "__main__":
         maxee = max( abs(ES[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
         maxsd = max( abs(SD[u, k]) for k in Ntw.K for u in Ntw.Scn.U)
         RR[iter] = Algo.rho
+        CC[iter] = Algo.c
+        GG[iter] = Algo.g
         EE[iter] = ES
         SS[iter] = SD
         EM[iter] = maxee
@@ -1489,7 +1504,7 @@ if __name__ == "__main__":
     Ntw.write_evs(EvES=EE,
                     EvSD=SS,
                     EvR=RR,
-                    c=Algo.c,
-                    g=Algo.g,
+                    c=CC,
+                    g=GG,
                     res_path=pname)
     os.system('cp -r '+pname+'/ Results') # this line creates a copy of results so that we don't need to change code in plotting. TODA, a more efficient way is to write code in python to visulize the results directly.

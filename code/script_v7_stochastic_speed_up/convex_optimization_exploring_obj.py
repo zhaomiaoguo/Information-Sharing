@@ -5,7 +5,7 @@ from pyutilib.misc.timing import tic,toc
 import numpy as np
 import time
 import os
-from Transportaion_test_systems import import_matrix, transportation_network_topo
+# from Transportaion_test_systems import import_matrix, transportation_network_topo
 from time import perf_counter, strftime, localtime
 from pyomo.environ import log as pyolog
 
@@ -40,7 +40,7 @@ class Network:
             exp0 = sum(self.Scn.pr[u]*sum(self.I.ca*model.c[k,u]**2+self.I.cb*model.c[k,u] for k in self.K) for u in self.Scn.U)
             exp1 = sum(self.Scn.pr[u]*sum(self.I.ga*model.g[k, u]**2+self.I.gb*model.g[k, u] for k in self.K) for u in self.Scn.U)
             exp20 = sum(self.Scn.pr[u]*sum(self.C.tff[r,s]*(model.v[r,s,u]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s,u]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.A) for u in self.Scn.U)
-            exp21 = sum(self.Scn.pr[u]*sum( model.q[r,s,k,u]*( pyolog(model.q[r,s,k,u]) - 1.0 - self.C.b0[k]) for k in self.K for s in self.S for r in self.R) for u in self.Scn.U)
+            exp21 = sum(self.Scn.pr[u]*sum( model.q[r,s,k,u]*( (model.q[r,s,k,u]) - 1.0 - self.C.b0[k]) for k in self.K for s in self.S for r in self.R) for u in self.Scn.U)
             return exp0 + exp1 + self.C.b1/self.C.b3 * ( exp20+ 1.0/self.C.b1*exp21)
         model.obj = Objective(rule=obj_rule, sense=minimize)
 
@@ -86,7 +86,7 @@ class Network:
 #       inst.c[17].value = 440.00420118220916
 #       inst.c[22].value = 772.5789256320681
 
-        results = optsolver.solve(inst, load_solutions=False, tee=True)
+        results = optsolver.solve(inst, load_solutions=False, tee=False)
     
         inst.solutions.load_from(results)
         rho_ans = {}
@@ -112,8 +112,8 @@ class Network:
                 dual_non_anti[u,k] = -inst.dual[inst.non_anti[k,u]]
 
                 print('Locational price at facility %i at scenario %i: %f' % (k,u, rho_ans[u,k]))
-                print('Dual capcity at facility %i at scenario %i: %f' % (k,u, dual_cap[u,k]))
-                print('Dual non_anticipativity at facility %i at scenario %i: %f' % (k,u, dual_non_anti[u,k]))
+#                 print('Dual capcity at facility %i at scenario %i: %f' % (k,u, dual_cap[u,k]))
+#                 print('Dual non_anticipativity at facility %i at scenario %i: %f' % (k,u, dual_non_anti[u,k]))
             for (i,j) in self.A:
                 v[i,j,u]=value(inst.v[i,j,u])
                 for r in self.R:
@@ -221,7 +221,7 @@ class Network:
 #                 dual_non_anti[u,k] = -inst.dual[inst.non_anti[k,u]]
 
                 print('Locational price at facility %i at scenario %i: %f' % (k,u, rho_ans[u,k]))
-                print('Dual capcity at facility %i at scenario %i: %f' % (k,u, dual_cap[u,k]))
+#                 print('Dual capcity at facility %i at scenario %i: %f' % (k,u, dual_cap[u,k]))
 #                 print('Dual non_anticipativity at facility %i at scenario %i: %f' % (k,u, dual_non_anti[u,k]))
             for (i,j) in self.A:
                 v[i,j,u]=value(inst.v[i,j,u])
@@ -242,6 +242,269 @@ class Network:
                 g[k,u]=value(inst.g[k,u])
                 c[k,u]=value(inst.c[k,u])
         return g, c, q, x, v, rho_ans, z, lamda1, lamda2, mu
+    
+    def VSS_investors(self, rho):
+        model = AbstractModel('Investors stand alone problem')
+        model.c = Var(self.K, within=NonNegativeReals,initialize=1000.0)
+        model.g = Var(self.K,  within=NonNegativeReals,initialize=500.0)
+        
+        rho_k={}
+        for k in self.K:
+            rho_k[k] = sum(self.Scn.pr[u] * rho[u,k] for u in self.Scn.U)
+
+        def obj_rule(model):
+            exp0 = sum(self.I.ca*model.c[k]**2+self.I.cb*model.c[k] for k in self.K)
+            exp1 = sum(self.I.ga*model.g[k]**2+self.I.gb*model.g[k]  for k in self.K)
+            exp2 = sum(model.g[k]*rho_k[k]  for k in self.K)
+            return exp2 - (exp0 + exp1)
+        model.obj = Objective(rule=obj_rule, sense=maximize)
+
+       
+
+        def capacity_rule(model, k):
+            return model.g[k]-model.c[k] <= 0
+        model.capacity = Constraint(self.K, rule=capacity_rule)
+
+
+        optsolver = SolverFactory(nlsol)
+        inst = model.create_instance()
+        
+
+        results = optsolver.solve(inst, load_solutions=False)
+        inst.solutions.load_from(results)
+        
+        objective = value(inst.obj)
+
+        
+        g={}
+        c={}
+        for k in self.K:
+            g[k]=value(inst.g[k])
+            c[k]=value(inst.c[k])
+            
+        print('VSS_investors objective:   ', objective)
+        return g, c, objective
+    
+    def centralized_problem_deterministic(self):
+        
+        growth = sum(self.Scn.pr[u] * self.Scn.growth[u] for u in self.Scn.U)
+        print('Expected growth rate is   ', growth)
+              
+        model = AbstractModel('Convex Reformulation deterministic')
+        model.c = Var(self.K, within=NonNegativeReals,initialize=1000.0)
+#         model.z = Var(self.K, within=NonNegativeReals,initialize=1000.0)
+        model.g = Var(self.K,  within=NonNegativeReals,initialize=500.0)
+        model.q = Var(self.R, self.S, self.K, within=NonNegativeReals, initialize=500.0)#=1e-1)
+        model.v = Var(self.A, within=NonNegativeReals,initialize=0.0) # traffic flow
+        model.x = Var(self.A, self.R, self.S, self.K, within=NonNegativeReals,initialize=0.0)   # traffic flow on link a associated with O-D pairs (r,s) and passing k
+        # break up x into two pars: x1 and x2
+        model.x1 = Var(self.A, self.R, self.S, self.K, within=NonNegativeReals,initialize=0.0)
+        model.x2 = Var(self.A, self.R, self.S, self.K, within=NonNegativeReals,initialize=0.0)
+
+        def obj_rule(model):
+            exp0 = sum(self.I.ca*model.c[k]**2+self.I.cb*model.c[k] for k in self.K)
+            exp1 = sum(self.I.ga*model.g[k]**2+self.I.gb*model.g[k] for k in self.K)
+            exp20 = sum(self.C.tff[r,s]*(model.v[r,s]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.A)
+            exp21 = sum( model.q[r,s,k]*( pyolog(model.q[r,s,k]) - 1.0 - self.C.b0[k]) for k in self.K for s in self.S for r in self.R)
+            return exp0 + exp1 + self.C.b1/self.C.b3 * ( exp20+ 1.0/self.C.b1*exp21)
+        model.obj = Objective(rule=obj_rule, sense=minimize)
+
+        def market_clear_rule(model, k):
+            return sum( self.C.e[r,s]*model.q[r, s, k] for r in self.R for s in self.S) - model.g[k] == 0
+        model.market_clear = Constraint(self.K, rule = market_clear_rule)
+
+        def capacity_rule(model, k):
+            return model.g[k]-model.c[k] <= 0
+        model.capacity = Constraint(self.K, rule=capacity_rule)
+
+#         def non_anti_rule(model, k):
+#             return model.c[k] == model.z[k]
+#         model.non_anti = Constraint(self.K,self.Scn.U, rule=non_anti_rule)
+
+        def conb_rule(model, i, j):
+            return sum( model.x[i,j,r,s,k] for k in self.K for s in self.S for r in self.R) == model.v[i,j]
+        model.conb = Constraint(self.A, rule=conb_rule)
+
+        def conb2_rule(model, i, j,r,s,k):
+            return model.x1[i,j,r,s,k] + model.x2[i,j,r,s,k] == model.x[i,j,r,s,k]
+        model.conb2 = Constraint(self.A, self.R, self.S, self.K, rule=conb2_rule)
+
+        def conc2_rule(model, r, s, k,n):
+            return sum(self.C.mA[n,i,j]*model.x1[i,j,r,s,k] for (i,j) in self.A) == model.q[r,s,k]*self.C.mE[n,r,k]
+        model.conc2 = Constraint(self.R, self.S, self.K, self.N, rule=conc2_rule)
+
+        def conc3_rule(model, r, s, k,n):
+            return sum(self.C.mA[n,i,j]*model.x2[i,j,r,s,k] for (i,j) in self.A) == model.q[r,s,k]*self.C.mE[n,k,s]
+        model.conc3 = Constraint(self.R, self.S, self.K, self.N, rule=conc3_rule)
+
+        def cond_rule(model, r, s):
+            return sum( model.q[r,s,k] for k in self.K) == self.C.d[r,s]*growth
+        model.cond = Constraint(self.R, self.S, rule=cond_rule)
+        optsolver = SolverFactory(nlsol)
+        inst = model.create_instance()
+        inst.dual = Suffix(direction=Suffix.IMPORT)
+        # initialization
+
+#       inst.c[3].value = 585.8735090176859
+#       inst.c[6].value = 228.81446723201296
+#       inst.c[12].value = 472.7288981299494
+#       inst.c[17].value = 440.00420118220916
+#       inst.c[22].value = 772.5789256320681
+
+        results = optsolver.solve(inst, load_solutions=False, tee=False)
+    
+        inst.solutions.load_from(results)
+        rho_ans = {}
+        dual_cap = {}
+        dual_non_anti = {}
+        x = {}
+        v = {}
+        q = {}
+        g = {}
+        c = {}
+        lamda1 = {}
+        lamda2 = {}
+        mu = {}
+        for k in self.K:
+            c[k] = value(inst.c[k])
+
+        
+        for k in self.K:
+            rho_ans[k] = -inst.dual[inst.market_clear[k]]
+            dual_cap[k] = -inst.dual[inst.capacity[k]]
+#             dual_non_anti[k] = -inst.dual[inst.non_anti[k]]
+
+            print('Locational price at facility %i : %f' % (k, rho_ans[k]))
+#             print('Dual capcity at facility %i: %f' % (k, dual_cap[k]))
+#             print('Dual non_anticipativity at facility %i: %f' % (k, dual_non_anti[k]))
+        for (i,j) in self.A:
+            v[i,j]=value(inst.v[i,j])
+            for r in self.R:
+                for s in self.S:
+                    for k in self.K:
+                        x[i,j,r,s,k]=value(inst.x[i,j,r,s,k])
+        for r in self.R:
+            for s in self.S:
+                mu[r,s] = inst.dual[inst.cond[r,s]]
+                for k in self.K:
+                    q[r,s,k]=value(inst.q[r,s,k])
+                    for n in self.N:
+                        lamda1[r,s,k,n] = inst.dual[inst.conc2[r,s,k,n]]
+                        lamda2[r,s,k,n] = inst.dual[inst.conc3[r,s,k,n]]
+                            
+        for k in self.K:
+            g[k]=value(inst.g[k])
+            c[k]=value(inst.c[k])
+        return g, c, q, x, v, rho_ans, lamda1, lamda2, mu
+    
+    def centralized_problem_VSS(self, cap):
+        model = AbstractModel('Convex Reformulation for VSS')
+        model.c = Var(self.K, self.Scn.U, within=NonNegativeReals,initialize=1000.0)
+#         model.z = Var(self.K, within=NonNegativeReals,initialize=1000.0)
+        model.g = Var(self.K, self.Scn.U,  within=NonNegativeReals,initialize=500.0)
+        model.q = Var(self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals, initialize=500.0)#=1e-1)
+        model.v = Var(self.A, self.Scn.U, within=NonNegativeReals,initialize=0.0) # traffic flow
+        model.x = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)   # traffic flow on link a associated with O-D pairs (r,s) and passing k
+        # break up x into two pars: x1 and x2
+        model.x1 = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)
+        model.x2 = Var(self.A, self.R, self.S, self.K, self.Scn.U, within=NonNegativeReals,initialize=0.0)
+
+        def obj_rule(model):
+            exp0 = sum(self.Scn.pr[u]*sum(self.I.ca*model.c[k,u]**2+self.I.cb*model.c[k,u] for k in self.K) for u in self.Scn.U)
+            exp1 = sum(self.Scn.pr[u]*sum(self.I.ga*model.g[k, u]**2+self.I.gb*model.g[k, u] for k in self.K) for u in self.Scn.U)
+            exp20 = sum(self.Scn.pr[u]*sum(self.C.tff[r,s]*(model.v[r,s,u]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s,u]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.A) for u in self.Scn.U)
+            exp21 = sum(self.Scn.pr[u]*sum( model.q[r,s,k,u]*( pyolog(model.q[r,s,k,u]) - 1.0 - self.C.b0[k]) for k in self.K for s in self.S for r in self.R) for u in self.Scn.U)
+            return exp0 + exp1 + self.C.b1/self.C.b3 * ( exp20+ 1.0/self.C.b1*exp21)
+        model.obj = Objective(rule=obj_rule, sense=minimize)
+
+        def market_clear_rule(model, k, u):
+            return self.Scn.pr[u]*(sum( self.C.e[r,s]*model.q[r, s, k,u] for r in self.R for s in self.S) - model.g[k,u]) == 0
+        model.market_clear = Constraint(self.K, self.Scn.U, rule = market_clear_rule)
+
+        def capacity_rule(model, k, u):
+            return model.g[k,u] - model.c[k,u] <= 0
+        model.capacity = Constraint(self.K, self.Scn.U, rule=capacity_rule)
+
+        def non_anti_rule(model, k, u):
+            return model.c[k,u] == cap[k]
+        model.non_anti = Constraint(self.K,self.Scn.U, rule=non_anti_rule)
+
+        def conb_rule(model, i, j, u):
+            return sum( model.x[i,j,r,s,k,u] for k in self.K for s in self.S for r in self.R) == model.v[i,j,u]
+        model.conb = Constraint(self.A, self.Scn.U, rule=conb_rule)
+
+        def conb2_rule(model, i, j,r,s,k,u):
+            return model.x1[i,j,r,s,k,u] + model.x2[i,j,r,s,k,u] == model.x[i,j,r,s,k,u]
+        model.conb2 = Constraint(self.A, self.R, self.S, self.K, self.Scn.U, rule=conb2_rule)
+
+        def conc2_rule(model, r, s, k,n, u):
+            return sum(self.C.mA[n,i,j]*model.x1[i,j,r,s,k,u] for (i,j) in self.A) == model.q[r,s,k,u]*self.C.mE[n,r,k]
+        model.conc2 = Constraint(self.R, self.S, self.K, self.N,self.Scn.U, rule=conc2_rule)
+
+        def conc3_rule(model, r, s, k,n,u):
+            return sum(self.C.mA[n,i,j]*model.x2[i,j,r,s,k,u] for (i,j) in self.A) == model.q[r,s,k,u]*self.C.mE[n,k,s]
+        model.conc3 = Constraint(self.R, self.S, self.K, self.N, self.Scn.U, rule=conc3_rule)
+
+        def cond_rule(model, r, s, u):
+            return sum( model.q[r,s,k,u] for k in self.K) == self.C.d[r,s]*self.Scn.growth[u]
+        model.cond = Constraint(self.R, self.S, self.Scn.U, rule=cond_rule)
+        optsolver = SolverFactory(nlsol)
+        inst = model.create_instance()
+        inst.dual = Suffix(direction=Suffix.IMPORT)
+        # initialization
+
+#       inst.c[3].value = 585.8735090176859
+#       inst.c[6].value = 228.81446723201296
+#       inst.c[12].value = 472.7288981299494
+#       inst.c[17].value = 440.00420118220916
+#       inst.c[22].value = 772.5789256320681
+
+        results = optsolver.solve(inst, load_solutions=False, tee=False)
+    
+        inst.solutions.load_from(results)
+        rho_ans = {}
+        dual_cap = {}
+        dual_non_anti = {}
+        x = {}
+        v = {}
+        q = {}
+        g = {}
+        c = {}
+       
+        lamda1 = {}
+        lamda2 = {}
+        mu = {}
+        
+
+        for u in self.Scn.U:
+            for k in self.K:
+                #rho_ans[u,k] = -inst.dual[inst.market_clear[k,u]]/self.Scn.pr[u] 
+                rho_ans[u,k] = -inst.dual[inst.market_clear[k,u]]
+                dual_cap[u,k] = -inst.dual[inst.capacity[k,u]]
+                dual_non_anti[u,k] = -inst.dual[inst.non_anti[k,u]]
+
+                print('Locational price at facility %i at scenario %i: %f' % (k,u, rho_ans[u,k]))
+#                 print('Dual capcity at facility %i at scenario %i: %f' % (k,u, dual_cap[u,k]))
+#                 print('Dual non_anticipativity at facility %i at scenario %i: %f' % (k,u, dual_non_anti[u,k]))
+            for (i,j) in self.A:
+                v[i,j,u]=value(inst.v[i,j,u])
+                for r in self.R:
+                    for s in self.S:
+                        for k in self.K:
+                            x[i,j,r,s,k,u]=value(inst.x[i,j,r,s,k,u])
+            for r in self.R:
+                for s in self.S:
+                    mu[r,s,u] = inst.dual[inst.cond[r,s,u]]
+                    for k in self.K:
+                        q[r,s,k,u]=value(inst.q[r,s,k,u])
+                        for n in self.N:
+                            lamda1[r,s,k,n,u] = inst.dual[inst.conc2[r,s,k,n,u]]
+                            lamda2[r,s,k,n,u] = inst.dual[inst.conc3[r,s,k,n,u]]
+                            
+            for k in self.K:
+                g[k,u]=value(inst.g[k,u])
+                c[k,u]=value(inst.c[k,u])
+        return g, c, q, x, v, rho_ans, lamda1, lamda2, mu
 
     def init_ADMM(self):
         rho_0={}
@@ -295,6 +558,12 @@ class Network:
         return SD
 
     # all the output can be saved in this function.
+    def write_evs_VSS(self,obj_VSS,name,res_path):
+        f_vss_obj = open((res_path+'/Resulting_objective_'+name+'.csv'),'w')
+        f_vss_obj.write('%f'%obj_VSS)
+        f_vss_obj.close()
+        
+        
     def write_evs(self,EvR,g,c,q,x,lamda1,lamda2,mu,name,res_path):
         #f_exsu = open((res_path+'/Resulting_exsu.csv'),'w')
         #f_scdi = open((res_path+'/Resulting_scendiff.csv'),'w')
@@ -307,51 +576,94 @@ class Network:
         f_lamda2 = open((res_path+'/Resulting_lamda2_'+name+'.csv'),'w')
         f_mu = open((res_path+'/Resulting_mu_'+name+'.csv'),'w')
     
-        for u in self.Scn.U:
+        if name== 'Deterministic':
             for k in self.K:
-                aux_p = 'Scenario%i,Node%i,'%(u,k)
-                aux_s = 'Scenario%i,Node%i,'%(u,k)
-                aux_sd = 'Scenario%i,Node%i,'%(u,k)
-                aux_g = aux_p+('%f'%(g[k,u]))+','
-                aux_cap = aux_p+('%f'%(c[k,u]))+','
+                aux_p = 'Node%i,'%(k)
+                aux_s = 'Node%i,'%(k)
+                aux_sd = 'Node%i,'%(k)
+                aux_g = aux_p+('%f'%(g[k]))+','
+                aux_cap = aux_p+('%f'%(c[k]))+','
                 #for nu in EvES:
-                aux_p = aux_p+('%f'%(EvR[u,k]))+','
-                   # aux_s = aux_s+('%f'%(EvES[nu][u,k]))+','
-                   # aux_sd = aux_sd+('%f'%(EvSD[nu][u,k]))+','
+                aux_p = aux_p+('%f'%(EvR[k]))+','
+                   
                 f_prices.write(aux_p+',\n')
                 #f_exsu.write(aux_s+',\n')
                 #f_scdi.write(aux_sd+',\n')
                 f_service.write(aux_g+',\n')
                 f_capacity.write(aux_cap+',\n')
         
-        for r in self.R:
-            for s in self.S:
-                for u in self.Scn.U:
-                    aux_mu = 'Scenario%i,Origin%i,Destination%i,'%(u,r,s)
-                    aux_mu = aux_mu + ('%f'%(mu[r,s,u])) + ','
-                    f_mu.write(aux_mu+',\n')
+#             for r in self.R:
+#                 for s in self.S:
+#                     aux_mu = 'Origin%i,Destination%i,'%(r,s)
+#                     aux_mu = aux_mu + ('%f'%(mu[r,s])) + ','
+#                     f_mu.write(aux_mu+',\n')
         
-        for r in self.R:
-            for s in self.S:
-                aux_mu = 'Scenario%i,Origin%i,Destination%i,'%(u,r,s)
-                aux_mu = aux_mu + ('%f'%(mu[r,s,u])) + ','
-                f_mu.write(aux_mu+',\n')
-                for k in self.K:
-                    for u in self.Scn.U:
-                        aux_q = 'Scenario%i,Origin%i,Destination%i,Facility%i,'%(u,r,s,k)
-                        aux_q = aux_q + ('%f'%(q[r,s,k,u])) + ','
+            for r in self.R:
+                for s in self.S:
+                    aux_mu = 'Origin%i,Destination%i,'%(r,s)
+                    aux_mu = aux_mu + ('%f'%(mu[r,s])) + ','
+                    f_mu.write(aux_mu+',\n')
+                    for k in self.K:
+                        aux_q = 'Origin%i,Destination%i,Facility%i,'%(r,s,k)
+                        aux_q = aux_q + ('%f'%(q[r,s,k])) + ','
                         f_traffic.write(aux_q+',\n')
                         for n in self.N:
-                            aux_lamda = 'Scenario%i,Origin%i,Destination%i,Facility%i,Node%i,'%(u,r,s,k,n)
-                            aux_lamda1 = aux_lamda + ('%f'%(lamda1[r,s,k,n,u])) + ','
-                            aux_lamda2 = aux_lamda + ('%f'%(lamda2[r,s,k,n,u])) + ','
+                            aux_lamda = 'Origin%i,Destination%i,Facility%i,Node%i,'%(r,s,k,n)
+                            aux_lamda1 = aux_lamda + ('%f'%(lamda1[r,s,k,n])) + ','
+                            aux_lamda2 = aux_lamda + ('%f'%(lamda2[r,s,k,n])) + ','
                             f_lamda1.write(aux_lamda1+',\n')
                             f_lamda2.write(aux_lamda2+',\n')
                             
                         for (i,j) in self.A:
-                            aux_x = 'Scenario%i,Node%i,Node%i,Origin%i,Destination%i,Facility%i,'%(u,i,j,r,s,k)
-                            aux_x = aux_x + ('%f'%(x[i,j,r,s,k,u])) + ','
+                            aux_x = 'Node%i,Node%i,Origin%i,Destination%i,Facility%i,'%(i,j,r,s,k)
+                            aux_x = aux_x + ('%f'%(x[i,j,r,s,k])) + ','
                             f_link.write(aux_x+',\n')
+        else:
+            for u in self.Scn.U:
+                for k in self.K:
+                    aux_p = 'Scenario%i,Node%i,'%(u,k)
+                    aux_s = 'Scenario%i,Node%i,'%(u,k)
+                    aux_sd = 'Scenario%i,Node%i,'%(u,k)
+                    aux_g = aux_p+('%f'%(g[k,u]))+','
+                    aux_cap = aux_p+('%f'%(c[k,u]))+','
+                #for nu in EvES:
+                    aux_p = aux_p+('%f'%(EvR[u,k]))+','
+                   # aux_s = aux_s+('%f'%(EvES[nu][u,k]))+','
+                   # aux_sd = aux_sd+('%f'%(EvSD[nu][u,k]))+','
+                    f_prices.write(aux_p+',\n')
+                #f_exsu.write(aux_s+',\n')
+                #f_scdi.write(aux_sd+',\n')
+                    f_service.write(aux_g+',\n')
+                    f_capacity.write(aux_cap+',\n')
+        
+            for r in self.R:
+                for s in self.S:
+                    for u in self.Scn.U:
+                        aux_mu = 'Scenario%i,Origin%i,Destination%i,'%(u,r,s)
+                        aux_mu = aux_mu + ('%f'%(mu[r,s,u])) + ','
+                        f_mu.write(aux_mu+',\n')
+        
+            for r in self.R:
+                for s in self.S:
+#                     aux_mu = 'Scenario%i,Origin%i,Destination%i,'%(u,r,s)
+#                     aux_mu = aux_mu + ('%f'%(mu[r,s,u])) + ','
+#                     f_mu.write(aux_mu+',\n')
+                    for k in self.K:
+                        for u in self.Scn.U:
+                            aux_q = 'Scenario%i,Origin%i,Destination%i,Facility%i,'%(u,r,s,k)
+                            aux_q = aux_q + ('%f'%(q[r,s,k,u])) + ','
+                            f_traffic.write(aux_q+',\n')
+                            for n in self.N:
+                                aux_lamda = 'Scenario%i,Origin%i,Destination%i,Facility%i,Node%i,'%(u,r,s,k,n)
+                                aux_lamda1 = aux_lamda + ('%f'%(lamda1[r,s,k,n,u])) + ','
+                                aux_lamda2 = aux_lamda + ('%f'%(lamda2[r,s,k,n,u])) + ','
+                                f_lamda1.write(aux_lamda1+',\n')
+                                f_lamda2.write(aux_lamda2+',\n')
+                            
+                            for (i,j) in self.A:
+                                aux_x = 'Scenario%i,Node%i,Node%i,Origin%i,Destination%i,Facility%i,'%(u,i,j,r,s,k)
+                                aux_x = aux_x + ('%f'%(x[i,j,r,s,k,u])) + ','
+                                f_link.write(aux_x+',\n')
        
         #f_exsu.close()
         f_prices.close()
@@ -852,7 +1164,7 @@ def Example(identical_scen, congestion):
     S = [1,7,14,20,24]
     R = [2,11,13,19,21]
     K = [3,6,12,17,22]
-    U = set(range(1,21))
+    U = set(range(1,101))
     N = set(range(1,25))
     A = [(1,2),(1,3),
         (2,1),(2,6),
@@ -1405,7 +1717,7 @@ def Example_6node(identical_scen, congestion):
     R = [1,4]
     S = [3,6]
     K = [2,5]
-    U = set(range(1,10))
+    U = set(range(1,2))
     N = set(range(1,7))
     A = [(1,2),(2,3),(1,4),(4,5),(5,6),(6,3)]
     I = [1]
@@ -1788,7 +2100,7 @@ if __name__ == "__main__":
 #     Ntw = Example_6node(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
-    start = time.time()
+    start_main = time.time()
     SD_tol = 0.1
     ES_tol = 0.1
     print ('Stopping critieria %f' % ES_tol)
@@ -1806,7 +2118,7 @@ if __name__ == "__main__":
 #         Ntw.C.model[u] = Ntw.C.traffic_problem_model(Algo,u)
     for iter in range(Maxit):
         time_bq[iter] = time.time()
-#         print ('Start iteration %i\t' % iter)
+        print ('Start iteration %i\t' % iter)
         # this are iteration for ADMM algorithm
         #Algo.q, Algo.x, Algo.v, Algo.c, Algo.g = Ntw.step_1(Algo)
         #Algo.znu, Algo.rho, Algo.lbda = Ntw.step_2(Algo)
@@ -1814,12 +2126,15 @@ if __name__ == "__main__":
         pname='Results_'+aux_str
         os.system('mkdir '+pname)
 
-#         problems= ['Stochastic', 'Wait_and_see']
-        problems= ['Stochastic']
+        
+#         problems=['Stochastic','Wait_and_see','Deterministic','VSS','VSS_investors']
+        problems=['Stochastic']
         for problem in problems:
 
 
             if problem == 'Stochastic':
+                print('===== The stochastic problem has started =====')
+                start = time.time()
                 Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu, Algo.lamda1, Algo.lamda2, Algo.mu = Ntw.centralized_problem()
                 Ntw.write_evs(EvR=Algo.rho,
                     g=Algo.g,
@@ -1832,9 +2147,14 @@ if __name__ == "__main__":
                     name = problem,
                     res_path=pname)
                 
-                print('Problem with non -anticipitivity constraint is solved')
+                rho_vss = Algo.rho
+                end= time.time()
+                run_time = (end-start)/60
+                print('==== The stochastic problem is solved. The run time was: %f  mins ====='%(run_time))
 
             elif problem == 'Wait_and_see':
+                print('===== The wait and see problem has started =====')
+                start = time.time()
                 Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.znu, Algo.lamda1, Algo.lamda2, Algo.mu = Ntw.centralized_problem_no_non_anti()
                 Ntw.write_evs(EvR=Algo.rho,
                     g=Algo.g,
@@ -1846,6 +2166,57 @@ if __name__ == "__main__":
                     mu = Algo.mu,
                     name = problem,
                     res_path=pname)
+                
+                end= time.time()
+                print('==== The wait and see problem is solved. The run time was: %f ====='%(end-start))
+                
+            elif problem == 'Deterministic':
+                print('===== Deterministic problem has started =====')
+                start = time.time()
+                Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.lamda1, Algo.lamda2, Algo.mu = Ntw.centralized_problem_deterministic()
+                store_cap = Algo.c
+                Ntw.write_evs(EvR=Algo.rho,
+                    g=Algo.g,
+                    c=Algo.c,
+                    q=Algo.q,
+                    x=Algo.x,
+                    lamda1=Algo.lamda1,
+                    lamda2=Algo.lamda2,
+                    mu = Algo.mu,
+                    name = problem,
+                    res_path=pname)
+                end = time.time()
+                print("===== Deterministic problem is solved. the run time was: %f ====="  %(end - start))
+                
+            elif problem == 'VSS':
+                print('===== VSS problem has started =====')
+                start = time.time()
+                Algo.g, Algo.c, Algo.q, Algo.x, Algo.v, Algo.rho, Algo.lamda1, Algo.lamda2, Algo.mu = Ntw.centralized_problem_VSS(store_cap)
+                Ntw.write_evs(EvR=Algo.rho,
+                    g=Algo.g,
+                    c=Algo.c,
+                    q=Algo.q,
+                    x=Algo.x,
+                    lamda1=Algo.lamda1,
+                    lamda2=Algo.lamda2,
+                    mu = Algo.mu,
+                    name = problem,
+                    res_path=pname)
+                end = time.time()
+                print("===== VSS problem has ended, the run time was: %f  ====="%(end - start))
+                
+                
+            elif problem == 'VSS_investors':
+                print("===== Investors' VSS problem has started ======")
+                start = time.time()
+                g_vss_investors, c_vss_investors, obj_vss_investors =  Ntw.VSS_investors(rho_vss)
+#                 print(obj_vss_investors)
+                Ntw.write_evs_VSS(obj_VSS = obj_vss_investors,
+                                  name = problem,
+                                  res_path=pname)
+                
+                end = time.time()
+                print("===== Investors' VSS problem is solved. The run time was: %f"%(end-start))
         #print(Algo.g)
         #print(Algo.c)
         #print(Algo.q)
@@ -1865,10 +2236,10 @@ if __name__ == "__main__":
                     print ('Equilibrium found!')
                     print ('Iteration %i ES_{max} %f, SD_{max} %f'% (iter,maxee, maxsd))
                     break
-        if time.time()-start > h_max*3600:
+        if time.time()-start_main > h_max*3600:
             print ('More than %i hours!'%h_max)
             break
     end = time.time()
-    el_time = end - start
+    el_time = end - start_main
     print ('Elapsed time %f' % el_time)
     os.system('cp -r '+pname+'/ Results') # this line creates a copy of results so that we don't need to change code in plotting. TODA, a more efficient way is to write code in python to visulize the results directly.

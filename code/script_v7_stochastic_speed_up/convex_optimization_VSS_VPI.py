@@ -1717,7 +1717,7 @@ def Example_6node(identical_scen, congestion):
     R = [1,4]
     S = [3,6]
     K = [2,5]
-    U = set(range(1,6))
+    U = set(range(1,2))
     N = set(range(1,7))
     A = [(1,2),(2,3),(1,4),(4,5),(5,6),(6,3)]
     I = [1]
@@ -2128,7 +2128,7 @@ if __name__ == "__main__":
 
         
         problems=['Stochastic','Wait_and_see','Deterministic','VSS','VSS_investors']
-#         problems=['Stochastic','VSS_investors']
+#         problems=['Stochastic']
         for problem in problems:
 
 
