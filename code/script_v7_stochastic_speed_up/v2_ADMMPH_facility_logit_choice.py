@@ -73,7 +73,7 @@ class Network:
             
             def obj_rule_tap(model):
                 exp0 = sum(self.C.tff[r,s]*(model.v[r,s]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.C.A)
-                exp1 = 1.0/self.C.b1*( sum( model.q[r,s,k]*(pyolog (model.q[r,s,k]) - 1.0 -self.C.b0[k]) for k in self.K for s in self.S for r in self.R))
+                exp1 = 1.0/self.C.b1*( sum( model.q[r,s,k]*(pyolog(model.q[r,s,k]) - 1.0 -self.C.b0[k]) for k in self.K for s in self.S for r in self.R))
 #                 exp2 = -sum(ADMM.rho[u,k] * sum(self.C.e[r,s]*model.q[r,s,k] for r in self.R for s in self.S) for k self.K)
                 exp3 =  sum(((-sum(self.C.e[r,s]*(2*model.q[r, s, k] - ADMM.q[u,r,s,k]) for r in self.R for s in self.S ) + ADMM.g[u, k])/2)** 2 for k in self.K )
                 exp2 = sum(ADMM.rho[u,k] * sum(self.C.e[r,s]*model.q[r,s,k] for r in self.R for s in self.S) for k in self.K)
