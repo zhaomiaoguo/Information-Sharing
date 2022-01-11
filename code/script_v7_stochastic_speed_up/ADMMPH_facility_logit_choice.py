@@ -1432,7 +1432,7 @@ if __name__ == "__main__":
     ES_tol = 1
     print ('Stopping critieria %f' % ES_tol)
     Maxit = 50
-    Pre_Iter = 20
+    Pre_Iter = 0
     EE = {} # excess supply
     SS = {} # scenario difference
     RR = {} # prices
