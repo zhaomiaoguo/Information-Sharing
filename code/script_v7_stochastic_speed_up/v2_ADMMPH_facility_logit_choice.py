@@ -1443,13 +1443,13 @@ if __name__ == "__main__":
     # this is the main function
     congestion = True 
     identical_scen = False 
-    Ntw = Example(identical_scen, congestion)
-#     Ntw = Example_6node(identical_scen, congestion)
+#     Ntw = Example(identical_scen, congestion)
+    Ntw = Example_6node(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start = time.time()
-    SD_tol = 0.01
-    ES_tol = 0.01
+    SD_tol = 1
+    ES_tol = 1
     print ('Stopping critieria %f' % ES_tol)
     Maxit = 50
     Pre_Iter = 10

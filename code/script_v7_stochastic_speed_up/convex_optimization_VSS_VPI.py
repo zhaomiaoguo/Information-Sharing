@@ -2096,8 +2096,8 @@ if __name__ == "__main__":
     identical_scen = False 
 #     Ntw = Example_Anaheim(identical_scen, congestion)
     
-    Ntw = Example(identical_scen, congestion)
-#     Ntw = Example_6node(identical_scen, congestion)
+#     Ntw = Example(identical_scen, congestion)
+    Ntw = Example_6node(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start_main = time.time()
@@ -2127,8 +2127,8 @@ if __name__ == "__main__":
         os.system('mkdir '+pname)
 
         
-        problems=['Stochastic','Wait_and_see','Deterministic','VSS','VSS_investors']
-#         problems=['Stochastic']
+#         problems=['Stochastic','Wait_and_see','Deterministic','VSS','VSS_investors']
+        problems=['Stochastic']
         for problem in problems:
 
 
