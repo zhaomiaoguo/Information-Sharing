@@ -32,10 +32,10 @@ class Network:
         for u in self.Scn.U:
             self.I.model[u].del_component('obj')
             def obj_rule_utmax(model):
-                exp0 = - sum(ADMM.rho[u,k]*model.g[k] - (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) - (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
-                exp1 = ADMM.r_1/2.0 * sum( ( sum(ADMM.q[u,r,s,k] for r in self.R for s in self.S) - model.g[k])** 2 for k in self.K )
-                exp2 = sum( ADMM.lbda[u,k]*(model.c[k] - ADMM.znu[k]) for k in self.K )
-                exp3 = ADMM.r_2/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
+                exp0 =  sum(ADMM.rho[u,k]*model.g[k] + (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) + (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
+                exp1 = sum( ADMM.lbda[u,k]*(model.c[k]) for k in self.K)
+                exp2 = ADMM.r_1/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
+                exp3 = ADMM.r_2/2.0 * sum( (model.g[k] - (ADMM.g[u,k] + sum(ADMM.q[u,r,s,k] * self.C.e[r,s] for r in self.R for s in self.S))/2)** 2 for k in self.K ) 
                 return exp0 + exp1 + exp2 + exp3
 
             self.I.model[u].add_component('obj', Objective(rule=obj_rule_utmax, sense=minimize))
@@ -65,10 +65,10 @@ class Network:
             self.I.model[u].del_component('obj')
             
             def obj_rule_utmax(model):
-                exp0 = - sum(ADMM.rho[u,k]*model.g[k] - (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) - (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
-                exp1 = ADMM.r_1/2.0 * sum( ( sum(ADMM.q[u,r,s,k] for r in self.R for s in self.S) - model.g[k])** 2 for k in self.K )
-                exp2 = sum( ADMM.lbda[u,k]*(model.c[k] - ADMM.znu[k]) for k in self.K )
-                exp3 = ADMM.r_2/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
+                exp0 =  sum(ADMM.rho[u,k]*model.g[k] + (self.I.ca*model.c[k]**2 + self.I.cb*model.c[k]) + (self.I.ga*model.g[k]**2+self.I.gb*model.g[k]) for k in self.K)
+                exp1 = sum( ADMM.lbda[u,k]*(model.c[k]) for k in self.K)
+                exp2 = ADMM.r_1/2.0 * sum((model.c[k] - ADMM.znu[k])**2 for k in self.K)
+                exp3 = ADMM.r_2/2.0 * sum( (model.g[k] - (ADMM.g[u,k] + sum(ADMM.q[u,r,s,k] * self.C.e[r,s] for r in self.R for s in self.S))/2)** 2 for k in self.K ) 
                 return exp0 + exp1 + exp2 + exp3
             
             def obj_rule_tap(model):
@@ -98,7 +98,7 @@ class Network:
             self.C.model[u].del_component('obj')
             def obj_rule_tap(model):
                 exp0 = sum(self.C.tff[r,s]*(model.v[r,s]+(self.C.b[r,s]/(self.C.alpha[r,s]+1.0))*(model.v[r,s]**(self.C.alpha[r,s]+1))/(self.C.cap[r,s]**(self.C.alpha[r,s]))) for (r,s) in self.C.A)
-                exp1 = 1.0/self.C.b1*( sum( model.q[r,s,k]*( model.q[r,s,k] - 1.0 -self.C.b0[k]) for k in self.K for s in self.S for r in self.R))
+                exp1 = 1.0/self.C.b3*( sum( model.q[r,s,k]*( model.q[r,s,k] - 1.0 -self.C.b0[k]) for k in self.K for s in self.S for r in self.R))
 #                 exp2 = -sum(ADMM.rho[u,k] * sum(self.C.e[r,s]*model.q[r,s,k] for r in self.R for s in self.S) for k self.K)
                 exp3 =  sum(((-sum(self.C.e[r,s]*(2*model.q[r, s, k] - ADMM.q[u,r,s,k]) for r in self.R for s in self.S ) + ADMM.g[u, k])/2)** 2 for k in self.K )
                 exp2 = sum(ADMM.rho[u,k] * sum(self.C.e[r,s]*model.q[r,s,k] for r in self.R for s in self.S) for k in self.K)
@@ -1443,13 +1443,13 @@ if __name__ == "__main__":
     # this is the main function
     congestion = True 
     identical_scen = False 
-#     Ntw = Example(identical_scen, congestion)
-    Ntw = Example_6node(identical_scen, congestion)
+    Ntw = Example(identical_scen, congestion)
+#     Ntw = Example_6node(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start = time.time()
-    SD_tol = 1
-    ES_tol = 1
+    SD_tol = 0.01
+    ES_tol = 0.01
     print ('Stopping critieria %f' % ES_tol)
     Maxit = 50
     Pre_Iter = 10

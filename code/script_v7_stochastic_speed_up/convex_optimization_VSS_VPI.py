@@ -1164,7 +1164,7 @@ def Example(identical_scen, congestion):
     S = [1,7,14,20,24]
     R = [2,11,13,19,21]
     K = [3,6,12,17,22]
-    U = set(range(1,21))
+    U = set(range(1,6))
     N = set(range(1,25))
     A = [(1,2),(1,3),
         (2,1),(2,6),
@@ -2096,8 +2096,8 @@ if __name__ == "__main__":
     identical_scen = False 
 #     Ntw = Example_Anaheim(identical_scen, congestion)
     
-#     Ntw = Example(identical_scen, congestion)
-    Ntw = Example_6node(identical_scen, congestion)
+    Ntw = Example(identical_scen, congestion)
+#     Ntw = Example_6node(identical_scen, congestion)
     Algo = Ntw.init_ADMM()
     time_bq = {}
     start_main = time.time()
@@ -2127,8 +2127,8 @@ if __name__ == "__main__":
         os.system('mkdir '+pname)
 
         
-#         problems=['Stochastic','Wait_and_see','Deterministic','VSS','VSS_investors']
-        problems=['Stochastic']
+        problems=['Stochastic','Wait_and_see','Deterministic','VSS','VSS_investors']
+#         problems=['Stochastic']
         for problem in problems:
 
 
