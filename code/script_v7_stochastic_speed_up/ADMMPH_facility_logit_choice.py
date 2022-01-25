@@ -9,7 +9,7 @@ from time import perf_counter, strftime,localtime
 from pyomo.environ import log as pyolog
 import random
 import math
-from Transportaion_test_systems import import_matrix, transportation_network_topo
+#from Transportaion_test_systems import import_matrix, transportation_network_topo
 quadsol = 'cplex'
 nlsol = 'ipopt'
 
@@ -1054,7 +1054,7 @@ def Example_6node(identical_scen, congestion):
         b0[k] = 1 # locational attractiveness
     #b1 = 1 # travel time
     b1 = 0.01# travel time
-    b2 = 1 # capacity
+    b2 = 0 # capacity
     b3 = 0.1 # price
     
     # income parameters for orgin and destination
@@ -1228,6 +1228,7 @@ def Example_6node(identical_scen, congestion):
                   e=e)
 
     return Ntw
+
 
 def Example_3node(identical_scen, congestion):
     R = [1]
@@ -1420,7 +1421,7 @@ def Example_3node(identical_scen, congestion):
 
 if __name__ == "__main__":
     # this is the main function
-    congestion = False 
+    congestion = True 
     identical_scen = False 
 #     Ntw = Example(identical_scen, congestion)
     Ntw = Example_6node(identical_scen, congestion)
@@ -1429,9 +1430,9 @@ if __name__ == "__main__":
     time_bq = {}
     start = time.time()
     SD_tol = 1
-    ES_tol = 1
+    ES_tol = 0.01
     print ('Stopping critieria %f' % ES_tol)
-    Maxit = 50
+    Maxit = 100
     Pre_Iter = 0
     EE = {} # excess supply
     SS = {} # scenario difference
