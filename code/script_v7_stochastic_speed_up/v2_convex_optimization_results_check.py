@@ -111,7 +111,7 @@ class Network:
                 dual_cap[u,k] = -inst.dual[inst.capacity[k,u]]
                 dual_non_anti[u,k] = -inst.dual[inst.non_anti[k,u]]
 
-                print('Locational price at facility %i at scenario %i: %f' % (k,u, rho_ans[u,k]))
+                print('Locational price at scenario %i at facility %i: %f' % (u, k, rho_ans[u,k]))
 #                 print('Dual capcity at facility %i at scenario %i: %f' % (k,u, dual_cap[u,k]))
 #                 print('Dual non_anticipativity at facility %i at scenario %i: %f' % (k,u, dual_non_anti[u,k]))
             for (i,j) in self.A:
@@ -132,6 +132,9 @@ class Network:
             for k in self.K:
                 g[k,u]=value(inst.g[k,u])
                 c[k,u]=value(inst.c[k,u])
+        for u in self.Scn.U:
+            for k in self.K:
+                print('Services at facility %i at scenario %i: %f' % (u,k, g[k,u]))
         return g, c, q, x, v, rho_ans, z, lamda1, lamda2, mu
 
     def centralized_problem_no_non_anti(self):
@@ -1773,7 +1776,7 @@ if __name__ == "__main__":
                 
                 rho_vss = Algo.rho
                 end= time.time()
-                print('==== The stochastic problem is solved. The run time was: %f ====='%(end-start))
+                print('==== The stochastic centralized problem is solved. The run time was: %f ====='%(end-start))
 
             elif problem == 'Wait_and_see':
                 print('===== The wait and see problem has started =====')
