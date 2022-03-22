@@ -667,14 +667,16 @@ class Network:
         
         f_obj.write('%f'%obj)
         f_obj.close()
-        
+#         print("============== Investors probelm results ===============")
         for k in self.K:
             for u in self.Scn.U:
                 aux_p = 'Scenario%i,Node%i,'%(u,k)
+                print("Locational service at scenario %i facility %i: %f"%(u,k,g[k,u]))
                 aux_g = aux_p+('%f'%(g[k,u]))+','
                 aux_cap = aux_p+('%f'%(c[k,u]))+','
                 
                 f_service.write(aux_g+',\n')
+                
                 f_capacity.write(aux_cap+',\n')
         f_service.close()  
         f_capacity.close()

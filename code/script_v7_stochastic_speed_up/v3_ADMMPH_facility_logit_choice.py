@@ -214,12 +214,14 @@ class Network:
                         for nu in EvES:
                             aux_q = aux_q+('%f'%(q[nu][u,r,s,k]))+','
                         f_traffic.write(aux_q+',\n')
+                        
             for k in self.K:
                 aux_p = 'Scenario%i,Node%i,'%(u,k)
                 aux_s = 'Scenario%i,Node%i,'%(u,k)
                 aux_sd = 'Scenario%i,Node%i,'%(u,k)
                 aux_g = 'Scenario%i,Node%i,'%(u,k) 
                 aux_c = 'Scenario%i,Node%i,'%(u,k)
+                print("Locational price at scenario %i location %i: %f"%(u,k,EvR[nu][u,k]))
                 for nu in EvES:
                     aux_p = aux_p+('%f'%(EvR[nu][u,k]))+','
                     aux_s = aux_s+('%f'%(EvES[nu][u,k]))+','
@@ -231,6 +233,9 @@ class Network:
                 f_scdi.write(aux_sd+',\n')
                 f_capacity.write(aux_c + ',\n')
                 f_services.write(aux_g + ',\n')
+        for u in self.Scn.U:
+            for k in  self.K:
+                print("Services at scenario %i location %i: %f"%(u,k,g[nu][u,k]))
         f_prices.close()
         f_exsu.close()
         f_prices.close()
