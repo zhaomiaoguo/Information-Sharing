@@ -1,0 +1,1 @@
+Data and code for paper: Alam, M. R.∗ and Guo, Z.† (2023), Co-optimization of Charging Scheduling and Platooning for Long-haul Electric Freight Vehicles . Transportation Research Part C: Emerging Technologies, 147, 104009. https://doi.org/10.1016/j.trc.2022.104009
