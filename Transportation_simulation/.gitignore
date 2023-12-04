@@ -1,0 +1,26 @@
+# hidden files
+.*
+!.gitignore
+
+# python virtual environment 
+venv
+
+# python pycache directory
+__pycache__
+
+# log files
+*.log
+*.txt
+
+# Open Street Map files
+*.osm
+
+# GMNS format files and yml settings files
+*.csv
+*.yml
+
+# Network figure files
+*.jpg
+
+# Data subdirectories
+data/*/

@@ -1,0 +1,9 @@
+<configuration>
+
+    <input>
+        <net-file value="fnn.net.xml"/>
+        <route-files value="fnn.rou.xml"/>
+
+    </input>
+
+</configuration>

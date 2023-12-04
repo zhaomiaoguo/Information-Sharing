@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2023-10-18 20:44:38 by Eclipse SUMO GUI Version 1.18.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="fnn.net.xml"/>
+        <route-files value="fnn.rou.xml"/>
+    </input>
+
+    <output>
+        <tripinfo-output value="tripinfo.xml"/>
+    </output>
+
+    <traci_server>
+        <remote-port value="1841"/>
+    </traci_server>
+
+</configuration>
+-->
+
+<tripinfos xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/tripinfo_file.xsd">
+    <tripinfo id="carflow.0" depart="0.00" departLane="e12_0" departPos="5.10" departSpeed="0.00" departDelay="0.00" arrival="15.00" arrivalLane="e23_0" arrivalPos="70.72" arrivalSpeed="14.28" duration="15.00" routeLength="140.16" waitingTime="0.00" waitingCount="0" stopTime="0.00" timeLoss="4.69" rerouteNo="0" devices="tripinfo_carflow.0" vType="car" speedFactor="1.06" vaporized=""/>
+</tripinfos>

@@ -1,0 +1,8 @@
+<routes>
+    <vType id="car" accel="3.5" decel="2.2" sigma="1.0" length="5" maxSpeed="30.0"/>
+    <route id="route1" edges="e12 e23" />
+    <route id="route2" edges="e14 e43" />
+    <route id="route3" edges="e12 e24 e43" />
+    <flow id="carflow" type="car" beg="0" end="0" number="5" route="route1"/>
+    <!--<vehicle id="veh0" type="type1" route="route1" depart="0" />-->
+</routes>

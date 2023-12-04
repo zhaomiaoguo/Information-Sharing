@@ -1,0 +1,10 @@
+<configuration>
+
+    <input>
+        <net-file value="Test 2 TraCI.net.xml"/>
+        <route-files value="Test 2 TraCI Route.rou.xml"/>
+        <additional-files value="Test 2 TraCI.add.xml"/>
+
+    </input>
+
+</configuration>
