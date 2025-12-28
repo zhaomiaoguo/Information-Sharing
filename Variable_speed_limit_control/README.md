@@ -1,0 +1,1 @@
+Data and code for paper: Afifah, F. ∗ and Guo, Z.† (2025), Optimal Speed Limit Control for Network Mobility and Safety: A Deep Reinforcement Learning Approach. Transportmetrica B: Transport Dynamics, 13(1), 2474663. https://doi.org/10.1080/21680566.2025.2474663

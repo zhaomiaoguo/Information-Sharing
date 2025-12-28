@@ -1,0 +1,20 @@
+<configuration>
+    <input>
+        <net-file value="slimer3.net.xml"/>
+        <route-files value="fourNode_slimer3.rou.xml"/>
+    <gui-settings-file value="test.settings.xml"/>
+    </input>
+
+    
+    <time>
+        <begin value="0"/>
+        <step-length value="1"/>
+    </time>
+
+    
+
+    <random>
+        <random value="false"/>
+        <seed value="0"/>
+    </random>
+</configuration>

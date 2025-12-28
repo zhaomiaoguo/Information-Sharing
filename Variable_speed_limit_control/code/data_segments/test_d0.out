@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on Wed Feb  9 09:42:00 2022 by Eclipse SUMO Version 1.5.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="data_segments/simple.net.xml"/>
+        <route-files value="data_segments/fourNode.rou.xml"/>
+        <additional-files value="data_segments/test.det.xml"/>
+    </input>
+
+    <time>
+        <begin value="0"/>
+        <end value="18000"/>
+        <step-length value="1"/>
+    </time>
+
+    <processing>
+        <random-depart-offset value="1800"/>
+    </processing>
+
+    <traci_server>
+        <remote-port value="51037"/>
+    </traci_server>
+
+    <gui_only>
+        <gui-settings-file value="data_segments/test.settings.xml"/>
+        <tracker-interval value="1"/>
+    </gui_only>
+
+</configuration>
+-->
+
+<detector xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/det_e1_file.xsd">
+</detector>

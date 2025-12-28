@@ -1,0 +1,16 @@
+<configuration>
+    <input>
+        <net-file value="simple.net.xml"/>
+        <route-files value="fourNode.rou.xml"/>
+    <gui-settings-file value="test.settings.xml"/>
+    </input>
+    
+    <time>
+        <begin value="0"/>
+        <end value="18000"/>
+        <step-length value="1"/>
+    </time>
+    <processing>
+        <random-depart-offset value="1800"/>
+    </processing>
+</configuration>

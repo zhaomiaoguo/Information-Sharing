@@ -1,0 +1,4 @@
+<additional>
+    <vType id="type0" color="255,105,180" length = "5.0" speedMode = "[0 0 0 0 0 0]" carFollowModel = "IDM" tau ="1" speedFactor="1" lcSpeedGain = "1.0"/>
+</additional>
+

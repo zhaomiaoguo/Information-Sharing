@@ -1,0 +1,5 @@
+<routes>
+    <vType id="type0" color="255,105,180" length = "5.0" speedMode = "[0 0 0 0 0 0]" laneChangeMode = "0b011010011001" carFollowModel = "IDM" tau ="1" speedFactor="1" lcSpeedGain = "1.0"/>	
+    <flow begin="0" end = "600" vehsPerHour = "11000" departLane="random" id="v9" from="e0" to="e6" type="type0" reroute="true" departSpeed="1" />
+</routes>
+

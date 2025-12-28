@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on Tue May  3 15:21:04 2022 by Eclipse SUMO netedit Version 1.5.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
+
+    <output>
+        <output-file value="/Users/fatimaafifah/OneDrive%20-%20Knights%20-%20University%20of%20Central%20Florida/reinforment%20learning%20optimal%20speed%20limit/reinforcement_learning_code/simple%20test/data_segments/one_link.net.xml"/>
+    </output>
+
+    <processing>
+        <offset.disable-normalization value="true"/>
+    </processing>
+
+    <junctions>
+        <no-turnarounds value="true"/>
+    </junctions>
+
+    <report>
+        <aggregate-warnings value="5"/>
+    </report>
+
+</configuration>
+-->
+
+<net version="1.3" junctionCornerDetail="5" limitTurnSpeed="5.50" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+
+    <location netOffset="0.00,0.00" convBoundary="-200.00,100.00,300.00,100.00" origBoundary="10000000000.00,10000000000.00,-10000000000.00,-10000000000.00" projParameter="!"/>
+
+    <edge id="e0" from="n0" to="n1" priority="-1">
+        <lane id="e0_0" index="0" speed="13.89" length="500.00" shape="-200.00,88.80 300.00,88.80"/>
+        <lane id="e0_1" index="1" speed="13.89" length="500.00" shape="-200.00,92.00 300.00,92.00"/>
+        <lane id="e0_2" index="2" speed="13.89" length="500.00" shape="-200.00,95.20 300.00,95.20"/>
+        <lane id="e0_3" index="3" speed="13.89" length="500.00" shape="-200.00,98.40 300.00,98.40"/>
+    </edge>
+
+    <junction id="n0" type="dead_end" x="-200.00" y="100.00" incLanes="" intLanes="" shape="-200.00,100.00 -200.00,87.20"/>
+    <junction id="n1" type="dead_end" x="300.00" y="100.00" incLanes="e0_0 e0_1 e0_2 e0_3" intLanes="" shape="300.00,87.20 300.00,100.00"/>
+
+</net>

@@ -1,0 +1,13 @@
+<configuration>
+    <input>
+        <net-file value="sumotest.net.xml"/>
+        <route-files value="test1.rou.xml"/>
+    <gui-settings-file value="test.settings.xml"/>
+    <additional-files value="test.det.xml"/>
+    </input>
+    <time>
+        <begin value="0"/>
+        <end value="1000"/>
+        <step-length value="1"/>
+    </time>
+</configuration>

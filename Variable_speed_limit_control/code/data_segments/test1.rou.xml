@@ -1,0 +1,639 @@
+<routes>
+
+<vType id="type0" color="255,105,180" length = "8.0" speedFactor="normc(1,0.1,0.2,2)" lcSpeedGain = "1"/>
+<vType id="type1" color="255,190,180" length = "8.0" speedMode = "[0 0 0 0 0 0]" carFollowModel = "IDM" tau = "0.7" speedFactor="normc(1,0.1,0.2,2)" lcSpeedGain = "1.2"/>
+<vType id="type2" color="22,255,255" length = "3.5" speedFactor="normc(1,0.1,0.2,2)" lcSpeedGain = "1"/>
+<vType id="type3" color="22,55,255" length = "3.5" speedMode = "[0 0 0 0 0 0]" laneChangeMode = "0b011010011001" carFollowModel = "IDM" tau = "0.9" speedFactor="normc(1,0.1,0.2,2)" lcSpeedGain = "1.1"/>
+
+<route id="0" edges="e0 e1 e2 e6"/> 
+<route id="1" edges="e0 e1 e5 e4 e6"/> 
+<route id="2" edges="e0 e3 e4 e6"/> 
+<vehicle id="0" depart="22.43" type="type1" route="0" departLane="random"/>
+
+<vehicle id="1" depart="32.35" type="type3" route="0" departLane="random"/>
+
+<vehicle id="2" depart="158.98" type="type1" route="1" departLane="random"/>
+
+<vehicle id="3" depart="174.72" type="type2" route="2" departLane="random"/>
+
+<vehicle id="4" depart="234.24" type="type2" route="0" departLane="random"/>
+
+<vehicle id="5" depart="269.81" type="type2" route="0" departLane="random"/>
+
+<vehicle id="6" depart="304.78" type="type3" route="2" departLane="random"/>
+
+<vehicle id="7" depart="389.5" type="type3" route="0" departLane="random"/>
+
+<vehicle id="8" depart="395.35" type="type3" route="2" departLane="random"/>
+
+<vehicle id="9" depart="465.07" type="type3" route="0" departLane="random"/>
+
+<vehicle id="10" depart="569.6" type="type0" route="2" departLane="random"/>
+
+<vehicle id="11" depart="589.83" type="type1" route="2" departLane="random"/>
+
+<vehicle id="12" depart="604.7" type="type3" route="0" departLane="random"/>
+
+<vehicle id="13" depart="623.4" type="type3" route="0" departLane="random"/>
+
+<vehicle id="14" depart="644.31" type="type3" route="1" departLane="random"/>
+
+<vehicle id="15" depart="656.8" type="type3" route="2" departLane="random"/>
+
+<vehicle id="16" depart="689.21" type="type3" route="2" departLane="random"/>
+
+<vehicle id="17" depart="711.67" type="type0" route="0" departLane="random"/>
+
+<vehicle id="18" depart="883.63" type="type2" route="0" departLane="random"/>
+
+<vehicle id="19" depart="910.74" type="type3" route="1" departLane="random"/>
+
+<vehicle id="20" depart="913.25" type="type3" route="0" departLane="random"/>
+
+<vehicle id="21" depart="1192.23" type="type2" route="2" departLane="random"/>
+
+<vehicle id="22" depart="1306.27" type="type3" route="0" departLane="random"/>
+
+<vehicle id="23" depart="1309.14" type="type0" route="2" departLane="random"/>
+
+<vehicle id="24" depart="1352.07" type="type2" route="0" departLane="random"/>
+
+<vehicle id="25" depart="1391.66" type="type3" route="0" departLane="random"/>
+
+<vehicle id="26" depart="1428.84" type="type3" route="2" departLane="random"/>
+
+<vehicle id="27" depart="1445.38" type="type2" route="0" departLane="random"/>
+
+<vehicle id="28" depart="1457.37" type="type2" route="2" departLane="random"/>
+
+<vehicle id="29" depart="1470.4" type="type3" route="0" departLane="random"/>
+
+<vehicle id="30" depart="1500.39" type="type1" route="2" departLane="random"/>
+
+<vehicle id="31" depart="1554.56" type="type3" route="0" departLane="random"/>
+
+<vehicle id="32" depart="1565.25" type="type3" route="2" departLane="random"/>
+
+<vehicle id="33" depart="1570.13" type="type3" route="0" departLane="random"/>
+
+<vehicle id="34" depart="1755.86" type="type2" route="0" departLane="random"/>
+
+<vehicle id="35" depart="1792.06" type="type3" route="0" departLane="random"/>
+
+<vehicle id="36" depart="1809.12" type="type2" route="2" departLane="random"/>
+
+<vehicle id="37" depart="1836.88" type="type3" route="2" departLane="random"/>
+
+<vehicle id="38" depart="1852.75" type="type3" route="0" departLane="random"/>
+
+<vehicle id="39" depart="1853.04" type="type0" route="1" departLane="random"/>
+
+<vehicle id="40" depart="1878.11" type="type3" route="2" departLane="random"/>
+
+<vehicle id="41" depart="1887.85" type="type3" route="2" departLane="random"/>
+
+<vehicle id="42" depart="1900.47" type="type1" route="0" departLane="random"/>
+
+<vehicle id="43" depart="1944.27" type="type2" route="0" departLane="random"/>
+
+<vehicle id="44" depart="1962.73" type="type2" route="0" departLane="random"/>
+
+<vehicle id="45" depart="1997.07" type="type2" route="0" departLane="random"/>
+
+<vehicle id="46" depart="2057.91" type="type2" route="2" departLane="random"/>
+
+<vehicle id="47" depart="2059.7" type="type2" route="2" departLane="random"/>
+
+<vehicle id="48" depart="2144.48" type="type3" route="2" departLane="random"/>
+
+<vehicle id="49" depart="2150.16" type="type3" route="2" departLane="random"/>
+
+<vehicle id="50" depart="2150.4" type="type2" route="2" departLane="random"/>
+
+<vehicle id="51" depart="2162.67" type="type1" route="0" departLane="random"/>
+
+<vehicle id="52" depart="2172.83" type="type3" route="0" departLane="random"/>
+
+<vehicle id="53" depart="2212.43" type="type3" route="2" departLane="random"/>
+
+<vehicle id="54" depart="2246.1" type="type1" route="0" departLane="random"/>
+
+<vehicle id="55" depart="2249.75" type="type0" route="2" departLane="random"/>
+
+<vehicle id="56" depart="2295.21" type="type2" route="0" departLane="random"/>
+
+<vehicle id="57" depart="2295.4" type="type2" route="0" departLane="random"/>
+
+<vehicle id="58" depart="2339.3" type="type2" route="0" departLane="random"/>
+
+<vehicle id="59" depart="2400.94" type="type2" route="0" departLane="random"/>
+
+<vehicle id="60" depart="2462.48" type="type2" route="2" departLane="random"/>
+
+<vehicle id="61" depart="2472.0" type="type2" route="2" departLane="random"/>
+
+<vehicle id="62" depart="2637.34" type="type0" route="1" departLane="random"/>
+
+<vehicle id="63" depart="2640.17" type="type2" route="2" departLane="random"/>
+
+<vehicle id="64" depart="2762.66" type="type3" route="1" departLane="random"/>
+
+<vehicle id="65" depart="2763.93" type="type3" route="2" departLane="random"/>
+
+<vehicle id="66" depart="2805.78" type="type3" route="2" departLane="random"/>
+
+<vehicle id="67" depart="2830.7" type="type3" route="1" departLane="random"/>
+
+<vehicle id="68" depart="2916.52" type="type3" route="0" departLane="random"/>
+
+<vehicle id="69" depart="2988.68" type="type2" route="2" departLane="random"/>
+
+<vehicle id="70" depart="3037.35" type="type2" route="0" departLane="random"/>
+
+<vehicle id="71" depart="3043.6" type="type1" route="0" departLane="random"/>
+
+<vehicle id="72" depart="3099.65" type="type1" route="0" departLane="random"/>
+
+<vehicle id="73" depart="3106.78" type="type2" route="0" departLane="random"/>
+
+<vehicle id="74" depart="3118.64" type="type3" route="0" departLane="random"/>
+
+<vehicle id="75" depart="3220.74" type="type2" route="2" departLane="random"/>
+
+<vehicle id="76" depart="3223.8" type="type1" route="0" departLane="random"/>
+
+<vehicle id="77" depart="3256.8" type="type1" route="2" departLane="random"/>
+
+<vehicle id="78" depart="3306.18" type="type1" route="0" departLane="random"/>
+
+<vehicle id="79" depart="3336.19" type="type3" route="1" departLane="random"/>
+
+<vehicle id="80" depart="3375.26" type="type0" route="2" departLane="random"/>
+
+<vehicle id="81" depart="3416.32" type="type2" route="0" departLane="random"/>
+
+<vehicle id="82" depart="3443.95" type="type2" route="1" departLane="random"/>
+
+<vehicle id="83" depart="3514.59" type="type0" route="2" departLane="random"/>
+
+<vehicle id="84" depart="3540.24" type="type3" route="0" departLane="random"/>
+
+<vehicle id="85" depart="3676.79" type="type3" route="2" departLane="random"/>
+
+<vehicle id="86" depart="3677.29" type="type2" route="1" departLane="random"/>
+
+<vehicle id="87" depart="3697.56" type="type3" route="2" departLane="random"/>
+
+<vehicle id="88" depart="3711.75" type="type3" route="0" departLane="random"/>
+
+<vehicle id="89" depart="3807.81" type="type3" route="2" departLane="random"/>
+
+<vehicle id="90" depart="3821.86" type="type2" route="0" departLane="random"/>
+
+<vehicle id="91" depart="3828.73" type="type3" route="0" departLane="random"/>
+
+<vehicle id="92" depart="3846.0" type="type0" route="0" departLane="random"/>
+
+<vehicle id="93" depart="3859.8" type="type3" route="1" departLane="random"/>
+
+<vehicle id="94" depart="3866.34" type="type2" route="2" departLane="random"/>
+
+<vehicle id="95" depart="3879.97" type="type2" route="2" departLane="random"/>
+
+<vehicle id="96" depart="4016.26" type="type3" route="2" departLane="random"/>
+
+<vehicle id="97" depart="4030.13" type="type3" route="2" departLane="random"/>
+
+<vehicle id="98" depart="4043.58" type="type3" route="2" departLane="random"/>
+
+<vehicle id="99" depart="4131.82" type="type2" route="0" departLane="random"/>
+
+<vehicle id="100" depart="4145.36" type="type0" route="0" departLane="random"/>
+
+<vehicle id="101" depart="4183.22" type="type3" route="1" departLane="random"/>
+
+<vehicle id="102" depart="4284.47" type="type1" route="0" departLane="random"/>
+
+<vehicle id="103" depart="4316.6" type="type2" route="2" departLane="random"/>
+
+<vehicle id="104" depart="4482.26" type="type3" route="1" departLane="random"/>
+
+<vehicle id="105" depart="4500.51" type="type2" route="2" departLane="random"/>
+
+<vehicle id="106" depart="4513.01" type="type1" route="0" departLane="random"/>
+
+<vehicle id="107" depart="4583.15" type="type1" route="2" departLane="random"/>
+
+<vehicle id="108" depart="4627.12" type="type2" route="0" departLane="random"/>
+
+<vehicle id="109" depart="4632.07" type="type2" route="2" departLane="random"/>
+
+<vehicle id="110" depart="4634.2" type="type2" route="2" departLane="random"/>
+
+<vehicle id="111" depart="4697.34" type="type2" route="2" departLane="random"/>
+
+<vehicle id="112" depart="4749.93" type="type3" route="0" departLane="random"/>
+
+<vehicle id="113" depart="4761.58" type="type1" route="2" departLane="random"/>
+
+<vehicle id="114" depart="4765.51" type="type0" route="1" departLane="random"/>
+
+<vehicle id="115" depart="4776.5" type="type0" route="2" departLane="random"/>
+
+<vehicle id="116" depart="4879.21" type="type3" route="0" departLane="random"/>
+
+<vehicle id="117" depart="4903.14" type="type3" route="2" departLane="random"/>
+
+<vehicle id="118" depart="4910.32" type="type1" route="0" departLane="random"/>
+
+<vehicle id="119" depart="4943.84" type="type3" route="2" departLane="random"/>
+
+<vehicle id="120" depart="4952.71" type="type2" route="0" departLane="random"/>
+
+<vehicle id="121" depart="5040.98" type="type2" route="2" departLane="random"/>
+
+<vehicle id="122" depart="5073.97" type="type2" route="0" departLane="random"/>
+
+<vehicle id="123" depart="5096.31" type="type2" route="2" departLane="random"/>
+
+<vehicle id="124" depart="5134.58" type="type2" route="2" departLane="random"/>
+
+<vehicle id="125" depart="5141.36" type="type1" route="2" departLane="random"/>
+
+<vehicle id="126" depart="5159.41" type="type3" route="2" departLane="random"/>
+
+<vehicle id="127" depart="5166.99" type="type2" route="2" departLane="random"/>
+
+<vehicle id="128" depart="5168.65" type="type2" route="0" departLane="random"/>
+
+<vehicle id="129" depart="5186.16" type="type0" route="2" departLane="random"/>
+
+<vehicle id="130" depart="5203.29" type="type3" route="1" departLane="random"/>
+
+<vehicle id="131" depart="5222.91" type="type2" route="0" departLane="random"/>
+
+<vehicle id="132" depart="5309.87" type="type2" route="2" departLane="random"/>
+
+<vehicle id="133" depart="5316.67" type="type2" route="0" departLane="random"/>
+
+<vehicle id="134" depart="5326.88" type="type2" route="0" departLane="random"/>
+
+<vehicle id="135" depart="5352.36" type="type2" route="2" departLane="random"/>
+
+<vehicle id="136" depart="5367.85" type="type3" route="0" departLane="random"/>
+
+<vehicle id="137" depart="5392.92" type="type2" route="2" departLane="random"/>
+
+<vehicle id="138" depart="5409.2" type="type3" route="1" departLane="random"/>
+
+<vehicle id="139" depart="5420.91" type="type3" route="2" departLane="random"/>
+
+<vehicle id="140" depart="5453.67" type="type2" route="0" departLane="random"/>
+
+<vehicle id="141" depart="5460.29" type="type3" route="2" departLane="random"/>
+
+<vehicle id="142" depart="5516.02" type="type3" route="2" departLane="random"/>
+
+<vehicle id="143" depart="5580.53" type="type0" route="2" departLane="random"/>
+
+<vehicle id="144" depart="5619.72" type="type3" route="0" departLane="random"/>
+
+<vehicle id="145" depart="5622.7" type="type1" route="2" departLane="random"/>
+
+<vehicle id="146" depart="5626.02" type="type3" route="0" departLane="random"/>
+
+<vehicle id="147" depart="5656.44" type="type2" route="0" departLane="random"/>
+
+<vehicle id="148" depart="5658.57" type="type2" route="2" departLane="random"/>
+
+<vehicle id="149" depart="5661.29" type="type3" route="2" departLane="random"/>
+
+<vehicle id="150" depart="5678.51" type="type3" route="2" departLane="random"/>
+
+<vehicle id="151" depart="5702.11" type="type1" route="2" departLane="random"/>
+
+<vehicle id="152" depart="5782.12" type="type3" route="2" departLane="random"/>
+
+<vehicle id="153" depart="5850.51" type="type3" route="2" departLane="random"/>
+
+<vehicle id="154" depart="5899.91" type="type2" route="0" departLane="random"/>
+
+<vehicle id="155" depart="5936.43" type="type3" route="1" departLane="random"/>
+
+<vehicle id="156" depart="5943.79" type="type0" route="0" departLane="random"/>
+
+<vehicle id="157" depart="5957.12" type="type2" route="0" departLane="random"/>
+
+<vehicle id="158" depart="5967.32" type="type0" route="0" departLane="random"/>
+
+<vehicle id="159" depart="6002.84" type="type1" route="0" departLane="random"/>
+
+<vehicle id="160" depart="6037.44" type="type3" route="1" departLane="random"/>
+
+<vehicle id="161" depart="6069.73" type="type0" route="2" departLane="random"/>
+
+<vehicle id="162" depart="6109.39" type="type2" route="0" departLane="random"/>
+
+<vehicle id="163" depart="6131.27" type="type2" route="2" departLane="random"/>
+
+<vehicle id="164" depart="6145.92" type="type3" route="0" departLane="random"/>
+
+<vehicle id="165" depart="6205.44" type="type0" route="2" departLane="random"/>
+
+<vehicle id="166" depart="6207.83" type="type3" route="2" departLane="random"/>
+
+<vehicle id="167" depart="6227.97" type="type3" route="2" departLane="random"/>
+
+<vehicle id="168" depart="6244.27" type="type3" route="0" departLane="random"/>
+
+<vehicle id="169" depart="6351.15" type="type1" route="0" departLane="random"/>
+
+<vehicle id="170" depart="6466.26" type="type0" route="2" departLane="random"/>
+
+<vehicle id="171" depart="6467.19" type="type3" route="1" departLane="random"/>
+
+<vehicle id="172" depart="6509.7" type="type1" route="0" departLane="random"/>
+
+<vehicle id="173" depart="6592.78" type="type3" route="2" departLane="random"/>
+
+<vehicle id="174" depart="6602.32" type="type2" route="2" departLane="random"/>
+
+<vehicle id="175" depart="6631.4" type="type2" route="2" departLane="random"/>
+
+<vehicle id="176" depart="6643.94" type="type3" route="0" departLane="random"/>
+
+<vehicle id="177" depart="6653.61" type="type0" route="0" departLane="random"/>
+
+<vehicle id="178" depart="6671.42" type="type3" route="0" departLane="random"/>
+
+<vehicle id="179" depart="6686.98" type="type1" route="2" departLane="random"/>
+
+<vehicle id="180" depart="6695.57" type="type3" route="0" departLane="random"/>
+
+<vehicle id="181" depart="6724.69" type="type2" route="2" departLane="random"/>
+
+<vehicle id="182" depart="6756.41" type="type3" route="2" departLane="random"/>
+
+<vehicle id="183" depart="6864.97" type="type2" route="2" departLane="random"/>
+
+<vehicle id="184" depart="6866.86" type="type2" route="2" departLane="random"/>
+
+<vehicle id="185" depart="6870.63" type="type3" route="2" departLane="random"/>
+
+<vehicle id="186" depart="6871.11" type="type1" route="2" departLane="random"/>
+
+<vehicle id="187" depart="6979.78" type="type1" route="0" departLane="random"/>
+
+<vehicle id="188" depart="6983.79" type="type3" route="1" departLane="random"/>
+
+<vehicle id="189" depart="7011.34" type="type2" route="2" departLane="random"/>
+
+<vehicle id="190" depart="7013.01" type="type3" route="2" departLane="random"/>
+
+<vehicle id="191" depart="7038.24" type="type0" route="0" departLane="random"/>
+
+<vehicle id="192" depart="7137.04" type="type0" route="2" departLane="random"/>
+
+<vehicle id="193" depart="7252.53" type="type3" route="0" departLane="random"/>
+
+<vehicle id="194" depart="7259.41" type="type3" route="0" departLane="random"/>
+
+<vehicle id="195" depart="7278.99" type="type3" route="0" departLane="random"/>
+
+<vehicle id="196" depart="7282.97" type="type3" route="0" departLane="random"/>
+
+<vehicle id="197" depart="7314.81" type="type3" route="0" departLane="random"/>
+
+<vehicle id="198" depart="7348.15" type="type3" route="1" departLane="random"/>
+
+<vehicle id="199" depart="7355.54" type="type2" route="2" departLane="random"/>
+
+<vehicle id="200" depart="7366.09" type="type1" route="2" departLane="random"/>
+
+<vehicle id="201" depart="7375.34" type="type3" route="1" departLane="random"/>
+
+<vehicle id="202" depart="7376.03" type="type2" route="2" departLane="random"/>
+
+<vehicle id="203" depart="7431.0" type="type2" route="0" departLane="random"/>
+
+<vehicle id="204" depart="7450.54" type="type0" route="2" departLane="random"/>
+
+<vehicle id="205" depart="7454.66" type="type2" route="2" departLane="random"/>
+
+<vehicle id="206" depart="7459.88" type="type2" route="0" departLane="random"/>
+
+<vehicle id="207" depart="7478.12" type="type3" route="0" departLane="random"/>
+
+<vehicle id="208" depart="7478.75" type="type1" route="0" departLane="random"/>
+
+<vehicle id="209" depart="7495.24" type="type1" route="2" departLane="random"/>
+
+<vehicle id="210" depart="7510.69" type="type3" route="2" departLane="random"/>
+
+<vehicle id="211" depart="7516.47" type="type0" route="0" departLane="random"/>
+
+<vehicle id="212" depart="7570.51" type="type3" route="2" departLane="random"/>
+
+<vehicle id="213" depart="7636.54" type="type2" route="0" departLane="random"/>
+
+<vehicle id="214" depart="7638.89" type="type1" route="0" departLane="random"/>
+
+<vehicle id="215" depart="7651.75" type="type2" route="2" departLane="random"/>
+
+<vehicle id="216" depart="7665.1" type="type2" route="1" departLane="random"/>
+
+<vehicle id="217" depart="7696.61" type="type2" route="0" departLane="random"/>
+
+<vehicle id="218" depart="7697.3" type="type2" route="2" departLane="random"/>
+
+<vehicle id="219" depart="7726.97" type="type3" route="0" departLane="random"/>
+
+<vehicle id="220" depart="7745.72" type="type0" route="0" departLane="random"/>
+
+<vehicle id="221" depart="7756.46" type="type3" route="2" departLane="random"/>
+
+<vehicle id="222" depart="7763.66" type="type2" route="0" departLane="random"/>
+
+<vehicle id="223" depart="7794.94" type="type3" route="0" departLane="random"/>
+
+<vehicle id="224" depart="7805.27" type="type2" route="2" departLane="random"/>
+
+<vehicle id="225" depart="7840.32" type="type2" route="0" departLane="random"/>
+
+<vehicle id="226" depart="7847.75" type="type2" route="0" departLane="random"/>
+
+<vehicle id="227" depart="7855.72" type="type2" route="0" departLane="random"/>
+
+<vehicle id="228" depart="7857.66" type="type3" route="0" departLane="random"/>
+
+<vehicle id="229" depart="7905.77" type="type2" route="2" departLane="random"/>
+
+<vehicle id="230" depart="7908.01" type="type3" route="0" departLane="random"/>
+
+<vehicle id="231" depart="8079.83" type="type2" route="0" departLane="random"/>
+
+<vehicle id="232" depart="8129.91" type="type3" route="0" departLane="random"/>
+
+<vehicle id="233" depart="8184.35" type="type3" route="0" departLane="random"/>
+
+<vehicle id="234" depart="8191.13" type="type3" route="2" departLane="random"/>
+
+<vehicle id="235" depart="8198.27" type="type2" route="0" departLane="random"/>
+
+<vehicle id="236" depart="8251.0" type="type3" route="2" departLane="random"/>
+
+<vehicle id="237" depart="8264.13" type="type2" route="2" departLane="random"/>
+
+<vehicle id="238" depart="8265.86" type="type2" route="0" departLane="random"/>
+
+<vehicle id="239" depart="8272.85" type="type0" route="0" departLane="random"/>
+
+<vehicle id="240" depart="8295.36" type="type0" route="0" departLane="random"/>
+
+<vehicle id="241" depart="8299.46" type="type3" route="2" departLane="random"/>
+
+<vehicle id="242" depart="8363.59" type="type2" route="2" departLane="random"/>
+
+<vehicle id="243" depart="8377.57" type="type3" route="0" departLane="random"/>
+
+<vehicle id="244" depart="8408.52" type="type3" route="2" departLane="random"/>
+
+<vehicle id="245" depart="8435.22" type="type2" route="2" departLane="random"/>
+
+<vehicle id="246" depart="8474.55" type="type1" route="0" departLane="random"/>
+
+<vehicle id="247" depart="8487.59" type="type2" route="2" departLane="random"/>
+
+<vehicle id="248" depart="8489.17" type="type1" route="2" departLane="random"/>
+
+<vehicle id="249" depart="8532.3" type="type2" route="2" departLane="random"/>
+
+<vehicle id="250" depart="8562.64" type="type3" route="2" departLane="random"/>
+
+<vehicle id="251" depart="8599.64" type="type2" route="0" departLane="random"/>
+
+<vehicle id="252" depart="8636.24" type="type2" route="0" departLane="random"/>
+
+<vehicle id="253" depart="8660.39" type="type2" route="2" departLane="random"/>
+
+<vehicle id="254" depart="8690.71" type="type2" route="2" departLane="random"/>
+
+<vehicle id="255" depart="8711.65" type="type2" route="2" departLane="random"/>
+
+<vehicle id="256" depart="8867.54" type="type2" route="2" departLane="random"/>
+
+<vehicle id="257" depart="8895.41" type="type2" route="2" departLane="random"/>
+
+<vehicle id="258" depart="8919.75" type="type3" route="2" departLane="random"/>
+
+<vehicle id="259" depart="8921.5" type="type3" route="2" departLane="random"/>
+
+<vehicle id="260" depart="9002.58" type="type2" route="2" departLane="random"/>
+
+<vehicle id="261" depart="9011.41" type="type2" route="2" departLane="random"/>
+
+<vehicle id="262" depart="9093.06" type="type3" route="1" departLane="random"/>
+
+<vehicle id="263" depart="9124.25" type="type2" route="0" departLane="random"/>
+
+<vehicle id="264" depart="9140.48" type="type1" route="2" departLane="random"/>
+
+<vehicle id="265" depart="9163.16" type="type3" route="2" departLane="random"/>
+
+<vehicle id="266" depart="9204.8" type="type2" route="2" departLane="random"/>
+
+<vehicle id="267" depart="9264.71" type="type1" route="0" departLane="random"/>
+
+<vehicle id="268" depart="9292.21" type="type2" route="0" departLane="random"/>
+
+<vehicle id="269" depart="9331.47" type="type3" route="0" departLane="random"/>
+
+<vehicle id="270" depart="9358.71" type="type2" route="2" departLane="random"/>
+
+<vehicle id="271" depart="9367.5" type="type3" route="0" departLane="random"/>
+
+<vehicle id="272" depart="9387.3" type="type2" route="0" departLane="random"/>
+
+<vehicle id="273" depart="9393.35" type="type3" route="0" departLane="random"/>
+
+<vehicle id="274" depart="9400.81" type="type1" route="2" departLane="random"/>
+
+<vehicle id="275" depart="9407.13" type="type2" route="1" departLane="random"/>
+
+<vehicle id="276" depart="9438.77" type="type2" route="0" departLane="random"/>
+
+<vehicle id="277" depart="9488.04" type="type3" route="2" departLane="random"/>
+
+<vehicle id="278" depart="9514.74" type="type3" route="1" departLane="random"/>
+
+<vehicle id="279" depart="9532.24" type="type2" route="2" departLane="random"/>
+
+<vehicle id="280" depart="9618.67" type="type0" route="0" departLane="random"/>
+
+<vehicle id="281" depart="9629.38" type="type0" route="1" departLane="random"/>
+
+<vehicle id="282" depart="9640.33" type="type3" route="2" departLane="random"/>
+
+<vehicle id="283" depart="9641.1" type="type3" route="1" departLane="random"/>
+
+<vehicle id="284" depart="9651.86" type="type3" route="0" departLane="random"/>
+
+<vehicle id="285" depart="9664.77" type="type2" route="0" departLane="random"/>
+
+<vehicle id="286" depart="9673.07" type="type2" route="2" departLane="random"/>
+
+<vehicle id="287" depart="9688.3" type="type3" route="1" departLane="random"/>
+
+<vehicle id="288" depart="9716.41" type="type2" route="0" departLane="random"/>
+
+<vehicle id="289" depart="9718.68" type="type2" route="2" departLane="random"/>
+
+<vehicle id="290" depart="9739.48" type="type3" route="2" departLane="random"/>
+
+<vehicle id="291" depart="9754.12" type="type3" route="2" departLane="random"/>
+
+<vehicle id="292" depart="9775.99" type="type3" route="2" departLane="random"/>
+
+<vehicle id="293" depart="9825.67" type="type3" route="2" departLane="random"/>
+
+<vehicle id="294" depart="9826.1" type="type3" route="2" departLane="random"/>
+
+<vehicle id="295" depart="9883.11" type="type3" route="0" departLane="random"/>
+
+<vehicle id="296" depart="9932.83" type="type2" route="0" departLane="random"/>
+
+<vehicle id="297" depart="10020.17" type="type3" route="1" departLane="random"/>
+
+<vehicle id="298" depart="10072.32" type="type0" route="0" departLane="random"/>
+
+<vehicle id="299" depart="10204.51" type="type3" route="2" departLane="random"/>
+
+<vehicle id="300" depart="10269.27" type="type3" route="2" departLane="random"/>
+
+<vehicle id="301" depart="10270.42" type="type3" route="0" departLane="random"/>
+
+<vehicle id="302" depart="10298.8" type="type2" route="0" departLane="random"/>
+
+<vehicle id="303" depart="10306.79" type="type2" route="1" departLane="random"/>
+
+<vehicle id="304" depart="10310.91" type="type1" route="2" departLane="random"/>
+
+<vehicle id="305" depart="10363.69" type="type3" route="0" departLane="random"/>
+
+<vehicle id="306" depart="10467.73" type="type3" route="0" departLane="random"/>
+
+<vehicle id="307" depart="10542.59" type="type3" route="2" departLane="random"/>
+
+<vehicle id="308" depart="10638.36" type="type2" route="0" departLane="random"/>
+
+<vehicle id="309" depart="10702.97" type="type3" route="1" departLane="random"/>
+
+<vehicle id="310" depart="10717.77" type="type3" route="2" departLane="random"/>
+
+<vehicle id="311" depart="10763.35" type="type1" route="0" departLane="random"/>
+
+<vehicle id="312" depart="10765.89" type="type3" route="0" departLane="random"/>
+
+<vehicle id="313" depart="10776.56" type="type1" route="2" departLane="random"/>
+
+</routes>

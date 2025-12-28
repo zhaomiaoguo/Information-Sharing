@@ -1,0 +1,26 @@
+<configuration>
+    <input>
+        <net-file value="slimer3.net.xml"/>
+        <route-files value="fourNode_slimer3.rou.xml"/>
+    <gui-settings-file value="test.settings.xml"/>
+    </input>
+
+    
+    <process>
+        <begin value="0"/>
+        <route-steps value="1850"/>
+        <routing-algorithm value="astar"/>
+        <device.rerouting.probability value="1"/>
+            <!--<device.rerouting.period value="30"/>-->
+        <device.rerouting.adaptation-interval value="1"/>
+        <device.rerouting.with-taz value="False"/>
+        <device.rerouting.explicit value=""/>
+        <vehroute-output.last-route value="False"/>
+        <vehroute-output.exit-times value="False"/>
+        <vehroute-output.sorted value="False"/>
+    </process>
+    <random>
+        <random value="false"/>
+        <seed value="0"/>
+    </random>
+</configuration>

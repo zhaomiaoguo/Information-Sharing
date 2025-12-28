@@ -1,0 +1,37 @@
+<additional>
+	<inductionLoop id="d0" lane="e1_0" pos="90" freq="30" file="test_d1.out" friendlyPos="x"/>
+	<inductionLoop id="d1" lane="e1_1" pos="90" freq="30" file="test_d1.out" friendlyPos="x"/>
+	<inductionLoop id="d2" lane="e1_0" pos="-90" freq="30" file="test_d1.out" friendlyPos="x"/>
+	<inductionLoop id="d3" lane="e1_1" pos="-90" freq="30" file="test_d1.out" friendlyPos="x"/>
+
+	<inductionLoop id="d4" lane="e2_0" pos="90" freq="30" file="test_d1.out" friendlyPos="x"/>
+	<inductionLoop id="d5" lane="e2_0" pos="-90" freq="30" file="test_d1.out" friendlyPos="x"/>
+
+	<inductionLoop id="d6" lane="e3_0" pos="90" freq="30" file="test_d1.out" friendlyPos="x"/>
+	<inductionLoop id="d7" lane="e3_0" pos="-90" freq="30" file="test_d1.out" friendlyPos="x"/>
+
+	<inductionLoop id="d8" lane="e4_0" pos="90" freq="30" file="test_d1.out" friendlyPos="x"/>
+	<inductionLoop id="d9" lane="e4_1" pos="90" freq="30" file="test_d1.out" friendlyPos="x"/>
+	<inductionLoop id="d10" lane="e4_0" pos="-90" freq="30" file="test_d1.out" friendlyPos="x"/>
+	<inductionLoop id="d11" lane="e4_1" pos="-90" freq="30" file="test_d1.out" friendlyPos="x"/>
+
+	<inductionLoop id="d12" lane="e5_0" pos="90" freq="30" file="test_d1.out" friendlyPos="x"/>
+	<inductionLoop id="d13" lane="e5_0" pos="-90" freq="30" file="test_d1.out" friendlyPos="x"/>
+
+
+
+
+
+	<inductionLoop id="d14" lane="e0_0" pos="90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d15" lane="e0_1" pos="90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d16" lane="e0_2" pos="90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d17" lane="e0_0" pos="-90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d18" lane="e0_1" pos="-90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d19" lane="e0_2" pos="-90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d20" lane="e6_0" pos="90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d21" lane="e6_1" pos="90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d22" lane="e6_2" pos="90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d23" lane="e6_0" pos="-90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d24" lane="e6_1" pos="-90" freq="30" file="test_d0.out" friendlyPos="x"/>
+	<inductionLoop id="d25" lane="e6_2" pos="-90" freq="30" file="test_d0.out" friendlyPos="x"/>
+</additional>

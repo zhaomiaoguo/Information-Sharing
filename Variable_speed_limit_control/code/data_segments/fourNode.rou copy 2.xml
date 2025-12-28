@@ -1,0 +1,5 @@
+<routes>
+    <vType id="Car" accel="2.6" decel="4.5"  length="2.0" maxSpeed="100.0" sigma="0.5" minGap="1.5" guiShape="passenger/sedan" speedDev="0.1"/>
+    <flow begin="0" end = "40" vehsPerHour="9000" departLane="random" id="v9" from="e0" to="e6" type="Car" reroute="true" departSpeed="random"/>
+</routes>
+
